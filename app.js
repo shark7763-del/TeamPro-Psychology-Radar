@@ -186,12 +186,7 @@ function renderAthleteLogin() {
               <input id="athleteName" autocomplete="name" placeholder="例如：王○○" required>
             </label>
             <label class="field">訓練項目
-              <select id="athleteProgram" required>
-                <option value="對練選手">對練</option>
-                <option value="品勢選手">品勢</option>
-                <option value="體能訓練">體能訓練</option>
-                <option value="團隊課程">團隊課程</option>
-              </select>
+              <input id="athleteProgram" placeholder="例如：對練、品勢、體能" required>
             </label>
             <button class="primary" type="submit">進入系統</button>
           </form>
@@ -215,7 +210,7 @@ function renderAthleteLogin() {
     const name = document.querySelector("#athleteName").value.trim();
     const program = document.querySelector("#athleteProgram").value;
     const existingAthlete = athletes.find((item) => item.name === name);
-    state.athlete = existingAthlete ? { ...existingAthlete, group: existingAthlete.group || program } : { id: `guest-${Date.now()}`, name, grade: "未設定", group: program };
+    state.athlete = existingAthlete ? { ...existingAthlete, group: program || existingAthlete.group } : { id: `guest-${Date.now()}`, name, grade: "未設定", group: program };
     render();
   });
 }

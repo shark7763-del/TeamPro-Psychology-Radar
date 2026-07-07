@@ -195,7 +195,6 @@ function renderAthleteLogin() {
             </label>
             <button class="primary" type="submit">進入系統</button>
           </form>
-          <p class="fine-print">本測驗僅作為運動心理訓練與自我了解使用。</p>
         </div>
       </div>
       <div class="panel logo-hero">
@@ -433,11 +432,11 @@ function renderAthleteResult() {
       <div class="grid-2">
         <section class="report-section">
           <h3>你的心理優勢</h3>
-          <ul class="rank-list">${summary.strengths.map((item) => `<li><strong>${item.name}</strong><span>${item.strength}</span></li>`).join("")}</ul>
+          <ul class="rank-list compact">${summary.strengths.map((item) => `<li><strong>${item.name}</strong></li>`).join("")}</ul>
         </section>
         <section class="report-section">
           <h3>本次建議優先訓練</h3>
-          <ul class="rank-list">${summary.priorities.map((item) => `<li><strong>${item.name}</strong><span>${item.train}</span></li>`).join("")}</ul>
+          <ul class="rank-list compact">${summary.priorities.map((item) => `<li><strong>${item.name}</strong></li>`).join("")}</ul>
         </section>
       </div>
       <section class="task-box">
@@ -584,27 +583,12 @@ function renderCoachReport(scale) {
         </section>
       </div>
       <div class="grid-2">
-        <section class="report-section"><h3>三項優勢</h3><ul class="rank-list">${summary.strengths.map((item) => `<li><strong>${item.name}</strong><span>${item.strength}</span></li>`).join("")}</ul></section>
-        <section class="report-section"><h3>兩項優先訓練</h3><ul class="rank-list">${summary.priorities.map((item) => `<li><strong>${item.name}</strong><span>${item.train}</span></li>`).join("")}</ul></section>
+        <section class="report-section"><h3>三項優勢</h3><ul class="rank-list compact">${summary.strengths.map((item) => `<li><strong>${item.name}</strong></li>`).join("")}</ul></section>
+        <section class="report-section"><h3>兩項優先訓練</h3><ul class="rank-list compact">${summary.priorities.map((item) => `<li><strong>${item.name}</strong></li>`).join("")}</ul></section>
       </div>
-      <section class="report-section">
-        <h3>教練觀察紀錄</h3>
-        <textarea id="coachNote" placeholder="近期比賽遇到判決爭議後，容易受到影響。下一階段加入失誤後重新啟動訓練。">${readAttempt(athlete.id, scale.id).note || ""}</textarea>
-        <div class="toolbar">
-          <button class="primary" id="saveNote" type="button">儲存紀錄</button>
-          <button class="ghost" type="button">指派任務</button>
-          <button class="ghost" type="button">匯出報告</button>
-        </div>
-      </section>
     </section>
   `;
   drawRadarInto("#coachRadar", scores, scores, previousScores(scores), "教練預設查看構面分數、雷達圖、前後測比較、系統解讀與訓練方向。");
-  document.querySelector("#saveNote").addEventListener("click", () => {
-    const saved = readAttempt(athlete.id, scale.id);
-    saved.note = document.querySelector("#coachNote").value.trim();
-    writeAttempt(athlete.id, scale.id, saved);
-    renderCoachReport(scale);
-  });
 }
 
 function renderTeamAnalysis(scale) {

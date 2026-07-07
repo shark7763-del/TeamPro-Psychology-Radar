@@ -1,0 +1,17 @@
+{
+  "name": "WenMind TeamPro 心理雷達",
+  "short_name": "WenMind Radar",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#050b18",
+  "theme_color": "#05101f",
+  "description": "TeamPro 運動心理雷達 MVP 原型",
+  "icons": [
+    {
+      "src": "wen logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

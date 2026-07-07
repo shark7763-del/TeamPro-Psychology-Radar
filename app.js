@@ -45,9 +45,9 @@ const scales = [
 ];
 
 const athletes = [
-  { id: "a01", name: "王○○", grade: "國中二年級", group: "對練選手", pin: "1207" },
-  { id: "a02", name: "林○○", grade: "國中三年級", group: "品勢選手", pin: "2288" },
-  { id: "a03", name: "陳○○", grade: "國中一年級", group: "對練選手", pin: "7788" }
+  { id: "a01", name: "王○○", grade: "國中二年級", group: "對練選手" },
+  { id: "a02", name: "林○○", grade: "國中三年級", group: "品勢選手" },
+  { id: "a03", name: "陳○○", grade: "國中一年級", group: "對練選手" }
 ];
 
 const state = {
@@ -180,13 +180,18 @@ function renderAthleteLogin() {
         <div>
           <p class="eyebrow">WenMind × TeamPro 選手端</p>
           <h1>看見心理狀態<br>找到下一步訓練方向</h1>
-          <p>這份測驗沒有標準答案，也不會影響你的出賽資格。請依照自己的真實感受作答。</p>
+          <p>所有填答內容僅作為運動心理評估與回饋使用，請安心填寫。</p>
           <form class="login-form" id="loginForm">
             <label class="field">選手姓名
               <input id="athleteName" autocomplete="name" placeholder="例如：王○○" required>
             </label>
-            <label class="field">四位數 PIN
-              <input id="athletePin" inputmode="numeric" maxlength="4" placeholder="示範：1207" required>
+            <label class="field">訓練項目
+              <select id="athleteProgram" required>
+                <option value="對練選手">對練</option>
+                <option value="品勢選手">品勢</option>
+                <option value="體能訓練">體能訓練</option>
+                <option value="團隊課程">團隊課程</option>
+              </select>
             </label>
             <button class="primary" type="submit">進入系統</button>
           </form>
@@ -209,8 +214,9 @@ function renderAthleteLogin() {
   document.querySelector("#loginForm").addEventListener("submit", (event) => {
     event.preventDefault();
     const name = document.querySelector("#athleteName").value.trim();
-    const pin = document.querySelector("#athletePin").value.trim();
-    state.athlete = athletes.find((item) => item.name === name && item.pin === pin) || { id: `guest-${Date.now()}`, name, grade: "未設定", group: "選手", pin };
+    const program = document.querySelector("#athleteProgram").value;
+    const existingAthlete = athletes.find((item) => item.name === name);
+    state.athlete = existingAthlete ? { ...existingAthlete, group: existingAthlete.group || program } : { id: `guest-${Date.now()}`, name, grade: "未設定", group: program };
     render();
   });
 }

@@ -589,6 +589,12 @@
     return `<div class="empty-inline">${escapeHtml(text)}</div>`;
   }
 
+  function assessmentName(record) {
+    return record && record.assessmentTemplateId
+      ? (getTemplate(record.assessmentTemplateId)?.name || "未命名量表")
+      : "";
+  }
+
   function priorityCard(row) {
     const record = row.record;
     const changes = record?.changeFromPrevious?.filter((item) => item.delta < 0).sort((a, b) => a.delta - b.delta).slice(0, 2) || [];
@@ -599,6 +605,7 @@
           <div>
             <h3>${escapeHtml(row.athlete.name)}｜${escapeHtml(row.athlete.sport || "未設定")}</h3>
             <span class="status-dot ${row.status}">${escapeHtml(statusLabel(row.status))}</span>
+            ${record ? `<span class="scale-tag">${escapeHtml(assessmentName(record))}</span>` : ""}
           </div>
           <span class="small-muted">${record ? formatDateTime(record.completedAt) : "尚未完成"}</span>
         </div>
@@ -646,6 +653,7 @@
               <div>
                 <h3>${escapeHtml(row.athlete.name)}｜${escapeHtml(row.athlete.sport || "未設定")}</h3>
                 <span class="status-dot ${row.status}">${escapeHtml(statusLabel(row.status))}</span>
+                <span class="scale-tag">${escapeHtml(assessmentName(row.record))}</span>
               </div>
               <span class="small-muted">${formatDateTime(row.record.completedAt)}</span>
             </div>
@@ -758,6 +766,7 @@
           <div>
             <p class="eyebrow">${escapeHtml(athlete.sport || "未設定")}</p>
             <h1>${escapeHtml(athlete.name)}</h1>
+            <p class="small-muted">本次量表：${escapeHtml(assessmentName(record))}｜完成 ${formatDateTime(record.completedAt)}</p>
           </div>
           <div class="toolbar">
             <button class="primary" id="genAthleteReport" type="button">產出報告</button>
@@ -831,7 +840,7 @@
         <header class="report-head">
           <h1>心理狀態報告</h1>
           <p class="report-name">${escapeHtml(athlete.name)}｜${escapeHtml(athlete.sport || "未設定")}</p>
-          <p class="report-meta">完成時間：${formatDateTime(record.completedAt)}　｜　整體狀態：${escapeHtml(statusLabel(record.overallStatus))}　｜　累計填報：${completedCount} 次</p>
+          <p class="report-meta">量表：${escapeHtml(assessmentName(record))}　｜　完成時間：${formatDateTime(record.completedAt)}　｜　整體狀態：${escapeHtml(statusLabel(record.overallStatus))}　｜　累計填報：${completedCount} 次</p>
         </header>
         <section class="report-block">
           <h2>雷達圖</h2>

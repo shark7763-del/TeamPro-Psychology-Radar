@@ -528,15 +528,23 @@
 
   async function postRemote(endpoint, payload) {
     // 用 text/plain 做「簡單請求」避開 GAS 不支援的 CORS preflight。
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) throw new Error(`同步失敗 (HTTP ${res.status})`);
-    const data = await res.json();
-    if (data && data.ok === false) throw new Error(data.error || "同步失敗");
-    return data;
+    // 加 15 秒逾時，避免手機弱網時 fetch 卡住不返回。
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), 15000) : null;
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+        signal: controller ? controller.signal : undefined
+      });
+      if (!res.ok) throw new Error(`同步失敗 (HTTP ${res.status})`);
+      const data = await res.json();
+      if (data && data.ok === false) throw new Error(data.error || "同步失敗");
+      return data;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   // 雲端資料層：以 localStorage 當離線快取，每次寫入非同步 push 到 GAS，

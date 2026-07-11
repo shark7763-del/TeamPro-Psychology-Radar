@@ -88,14 +88,28 @@
     await renderRoute();
   }
 
-  async function syncPull() {
-    if (typeof repos.store.pull === "function") {
-      try {
-        await repos.store.pull();
-      } catch {
-        /* 離線時沿用本機快取，不阻斷畫面 */
+  const routeHandlers = {
+    "/": renderAthleteName,
+    "/assessment": renderAssessmentEntry,
+    "/coach/login": renderCoachLogin,
+    "/coach/dashboard": renderCoachDashboard,
+    "/coach/athletes": renderAllAthletes,
+    "/coach/athletes/:athleteId": renderAthleteDetail,
+    "/coach/assessments": renderAssessmentManagement,
+    "/coach/follow-ups": renderFollowUps
+  };
+  // 背景同步完成後可安全自動刷新的唯讀清單頁（避免刷掉正在輸入的表單）
+  const REFRESHABLE_ROUTES = new Set(["/coach/dashboard", "/coach/athletes", "/coach/follow-ups"]);
+  let renderToken = 0;
+
+  // 畫面先用本機快取即時渲染，再背景與後台同步；清單頁同步完成後才自動刷新。
+  function backgroundSync(routeName, params, token) {
+    if (typeof repos.store.pull !== "function") return;
+    repos.store.pull().then(() => {
+      if (token === renderToken && REFRESHABLE_ROUTES.has(routeName)) {
+        (routeHandlers[routeName] || renderNotFound)(params);
       }
-    }
+    }).catch(() => {});
   }
 
   async function syncFlush() {
@@ -113,6 +127,7 @@
     state.route = parsed.name;
     state.routeParams = parsed.params;
     state.error = "";
+    const token = ++renderToken;
     coachLink.hidden = parsed.name.startsWith("/coach/") && parsed.name !== "/coach/login";
     if (parsed.name.startsWith("/coach/") && parsed.name !== "/coach/login") {
       const session = await repos.auth.currentSession();
@@ -121,21 +136,10 @@
         return;
       }
     }
-    // 每次切換畫面先與後台同步一次，確保教練看到選手最新填報、選手拿到最新測驗設定。
-    await syncPull();
-    const handlers = {
-      "/": renderAthleteName,
-      "/assessment": renderAssessmentEntry,
-      "/coach/login": renderCoachLogin,
-      "/coach/dashboard": renderCoachDashboard,
-      "/coach/athletes": renderAllAthletes,
-      "/coach/athletes/:athleteId": renderAthleteDetail,
-      "/coach/assessments": renderAssessmentManagement,
-      "/coach/follow-ups": renderFollowUps
-    };
-    const handler = handlers[parsed.name] || renderNotFound;
-    await handler(parsed.params);
+    const handler = routeHandlers[parsed.name] || renderNotFound;
+    await handler(parsed.params); // 先用本機快取即時渲染，手機點擊立刻有反應
     app.focus({ preventScroll: true });
+    backgroundSync(parsed.name, parsed.params, token); // 再背景與後台同步、清單頁自動刷新
   }
 
   function shell(content, options = {}) {

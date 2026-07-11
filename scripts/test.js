@@ -68,6 +68,13 @@ async function run() {
   assert(scores.every((score) => Number.isFinite(score.score)), "分數需為數字");
 
   const repos = core.createRepositories();
+  await assert.rejects(
+    () => repos.auth.login({ account: "demo", password: "demo" }),
+    /帳號或密碼錯誤/,
+    "教練後台不可接受任意展示帳密"
+  );
+  const coachSession = await repos.auth.login({ account: "mind123", password: "mind123" });
+  assert.strictEqual(coachSession.coachId, "coach-mind123", "運動心理教練帳密需可登入");
   const session = await repos.assessments.getActiveSession({});
   const athlete = await repos.athletes.upsertProfile({ name: "  王小明  ", sport: "籃球", groupId: session.groupId });
   assert.strictEqual(athlete.name, "王小明", "姓名需trim後儲存");

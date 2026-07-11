@@ -436,47 +436,24 @@
   async function renderAthleteResult(recordId) {
     const records = await repos.assessments.recordsForAthlete(state.athlete.id);
     const record = records.find((item) => item.id === recordId) || records[0];
-    const sorted = [...record.dimensionScores].sort((a, b) => b.score - a.score);
-    const strengths = sorted.slice(0, 2);
-    const watch = [...record.dimensionScores].sort((a, b) => a.score - b.score).slice(0, 2);
-    const hasPrevious = !!record.changeFromPrevious;
     shell(`
       <section class="result-flow">
         <div class="callout">
           <p class="eyebrow">本次心理狀態已完成送出｜${escapeHtml(statusLabel(record.overallStatus))}</p>
           <h1>恭喜你完成測驗</h1>
-          <p>這份結果提供自我了解與後續溝通參考，不代表醫療或心理疾病診斷。</p>
-        </div>
-        <div class="grid-2">
-          <section class="report-section">
-            <h2>你的相對優勢</h2>
-            <ul class="rank-list compact">${strengths.map((item) => `<li><strong>${escapeHtml(item.name)}</strong><span>${item.score}</span></li>`).join("")}</ul>
-          </section>
-          <section class="report-section">
-            <h2>近期可以留意</h2>
-            <ul class="rank-list compact">${watch.map((item) => `<li><strong>${escapeHtml(item.name)}</strong><span>${item.score}</span></li>`).join("")}</ul>
-          </section>
         </div>
         <div id="resultRadar"></div>
+        <section class="report-section">
+          <h2>分數</h2>
+          ${scoreTable(record.dimensionScores)}
+        </section>
         <div class="toolbar">
-          <button class="ghost" id="showAdvice" type="button">查看簡短建議</button>
           <button class="primary" type="button" data-nav="/">完成並離開</button>
         </div>
-        <div id="resultDetail" class="result-detail"></div>
-        <p class="small-muted">${hasPrevious ? "本次已使用真實前次紀錄比較。" : "尚無前次資料，本次結果將作為個人基準。"}</p>
       </section>
     `, { narrow: true });
     bindNav();
     drawRadarInto("#resultRadar", record.dimensionScores, null, "雷達圖範圍固定為0至100。");
-    document.querySelector("#showAdvice").addEventListener("click", () => {
-      document.querySelector("#resultDetail").innerHTML = `
-        <section class="report-section">
-          <h2>簡短建議</h2>
-          <p>${escapeHtml(record.aiSummary)}</p>
-          <p><strong>可以先想想：</strong>${escapeHtml(record.suggestedQuestion)}</p>
-        </section>
-      `;
-    });
   }
 
   async function renderCoachLogin() {
@@ -494,10 +471,10 @@
         </div>
         <form class="entry-form" id="coachLoginForm" novalidate>
           <label class="field">教練帳號
-            <input id="coachAccount" autocomplete="username" placeholder="demo">
+            <input id="coachAccount" autocomplete="username" placeholder="mind123">
           </label>
           <label class="field">密碼
-            <input id="coachPassword" type="password" autocomplete="current-password" placeholder="任意展示密碼">
+            <input id="coachPassword" type="password" autocomplete="current-password" placeholder="mind123">
           </label>
           <p class="form-error" id="loginError" aria-live="polite"></p>
           <button class="primary" type="submit">登入後台</button>

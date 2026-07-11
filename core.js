@@ -510,11 +510,14 @@
       this.store = store;
     }
     async login({ account, password }) {
-      if (!account?.trim() || !password?.trim()) throw new Error("請輸入教練帳號與密碼。");
+      const normalizedAccount = account?.trim() || "";
+      const normalizedPassword = password?.trim() || "";
+      if (!normalizedAccount || !normalizedPassword) throw new Error("請輸入教練帳號與密碼。");
+      if (normalizedAccount !== "mind123" || normalizedPassword !== "mind123") throw new Error("帳號或密碼錯誤。");
       const session = {
         id: uid("session"),
-        coachId: "demo-coach",
-        coachName: account.trim(),
+        coachId: "coach-mind123",
+        coachName: "運動心理教練",
         demo: true,
         createdAt: new Date().toISOString()
       };

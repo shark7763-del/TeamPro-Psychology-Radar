@@ -261,7 +261,6 @@
       await renderProfileSetup();
       return;
     }
-    const draft = await repos.assessments.readDraft(state.athlete.id, session.id, template.id);
     shell(`
       <section class="panel-flow">
         <p class="eyebrow">${escapeHtml(state.athlete.name)}｜${escapeHtml(state.athlete.sport)}</p>
@@ -269,13 +268,10 @@
         <div class="assessment-grid">
           ${assessmentTemplates.map((item) => {
             const active = item.id === template.id;
-            const itemDraft = active ? draft : null;
-            const itemAnswered = itemDraft ? Object.keys(itemDraft.answers || {}).length : 0;
             return `
               <button class="assessment-card ${active ? "active" : ""}" data-template="${item.id}" type="button">
                 <strong>${escapeHtml(item.name)}</strong>
                 <span>${escapeHtml(item.description)}</span>
-                <small>${item.questions.length}題｜${item.points}點量尺${itemAnswered ? `｜已完成 ${itemAnswered}/${item.questions.length}` : ""}</small>
               </button>
             `;
           }).join("")}

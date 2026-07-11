@@ -262,30 +262,24 @@
       return;
     }
     const draft = await repos.assessments.readDraft(state.athlete.id, session.id, template.id);
-    const answered = Object.keys(draft?.answers || {}).length;
     shell(`
       <section class="panel-flow">
         <p class="eyebrow">${escapeHtml(state.athlete.name)}｜${escapeHtml(state.athlete.sport)}</p>
-        <h1>選擇心理量表</h1>
         <p>請選擇本次要填寫的心理量表。系統會依各量表的題目、量尺與構面建立獨立歷史紀錄。</p>
         <div class="assessment-grid">
           ${assessmentTemplates.map((item) => {
             const active = item.id === template.id;
+            const itemDraft = active ? draft : null;
+            const itemAnswered = itemDraft ? Object.keys(itemDraft.answers || {}).length : 0;
             return `
               <button class="assessment-card ${active ? "active" : ""}" data-template="${item.id}" type="button">
                 <strong>${escapeHtml(item.name)}</strong>
                 <span>${escapeHtml(item.description)}</span>
-                <small>${item.questions.length}題｜${item.points}點量尺</small>
+                <small>${item.questions.length}題｜${item.points}點量尺${itemAnswered ? `｜已完成 ${itemAnswered}/${item.questions.length}` : ""}</small>
               </button>
             `;
           }).join("")}
         </div>
-        <section class="report-section">
-          <h2>${escapeHtml(template.name)}</h2>
-          <p>${escapeHtml(template.description)}</p>
-          <p class="notice">${escapeHtml(template.disclaimer)}</p>
-          <p class="small-muted">目前進度：${answered}/${template.questions.length}</p>
-        </section>
         <div class="steps-list">
           <span>閱讀簡短使用與隱私說明</span>
           <span>逐題作答並自動暫存</span>
@@ -293,18 +287,16 @@
         </div>
         <div class="toolbar">
           <button class="ghost" type="button" id="editProfile">修改運動項目</button>
-          <button class="primary" type="button" id="startAssessment">${answered ? "繼續" : "開始測驗"}</button>
         </div>
       </section>
     `, { narrow: true });
     document.querySelectorAll("[data-template]").forEach((button) => {
       button.addEventListener("click", () => {
         state.templateId = button.dataset.template;
-        renderAssessmentEntry(state.routeParams);
+        renderConsent(getTemplate(state.templateId));
       });
     });
     document.querySelector("#editProfile").addEventListener("click", renderProfileSetup);
-    document.querySelector("#startAssessment").addEventListener("click", () => renderConsent(template));
   }
 
   function renderConsent(template) {

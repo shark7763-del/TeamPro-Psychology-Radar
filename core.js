@@ -800,12 +800,13 @@
       return record;
     }
     async records() {
-      return this.store.read().assessmentRecords;
+      return this.store.read().assessmentRecords.map(refreshRecordNames);
     }
     async recordsForAthlete(athleteId) {
       return this.store.read().assessmentRecords
         .filter((record) => record.athleteId === athleteId)
-        .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+        .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
+        .map(refreshRecordNames);
     }
     async markViewed(recordId) {
       const store = this.store.read();
@@ -892,6 +893,24 @@
       endDate: "",
       token: "local-link",
       createdAt: new Date().toISOString()
+    };
+  }
+
+  // 構面顯示名稱以「目前量表定義」為準（用 id 對照），讓量表改名後舊紀錄也一起更新。
+  function refreshRecordNames(record) {
+    if (!record || !record.assessmentTemplateId) return record;
+    const template = getTemplate(record.assessmentTemplateId);
+    if (!template || !Array.isArray(template.dimensions)) return record;
+    const nameById = {};
+    template.dimensions.forEach((dimension) => { nameById[dimension.id] = dimension.name; });
+    const fix = (arr) => Array.isArray(arr)
+      ? arr.map((item) => (item && nameById[item.id]) ? { ...item, name: nameById[item.id] } : item)
+      : arr;
+    return {
+      ...record,
+      dimensionScores: fix(record.dimensionScores),
+      changeFromPrevious: fix(record.changeFromPrevious),
+      changeFromBaseline: fix(record.changeFromBaseline)
     };
   }
 

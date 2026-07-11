@@ -276,23 +276,18 @@
             `;
           }).join("")}
         </div>
-        <div class="steps-list">
-          <span>閱讀簡短使用與隱私說明</span>
-          <span>逐題作答並自動暫存</span>
-          <span>送出後同步到心理教練後台</span>
-        </div>
-        <div class="toolbar">
-          <button class="ghost" type="button" id="editProfile">修改運動項目</button>
-        </div>
       </section>
     `, { narrow: true });
     document.querySelectorAll("[data-template]").forEach((button) => {
-      button.addEventListener("click", () => {
+      button.addEventListener("click", async () => {
         state.templateId = button.dataset.template;
-        renderConsent(getTemplate(state.templateId));
+        const selectedTemplate = getTemplate(state.templateId);
+        const draft = await repos.assessments.readDraft(state.athlete.id, state.activeSession.id, selectedTemplate.id);
+        state.startedAt = draft?.startedAt || new Date().toISOString();
+        state.questionIndex = firstUnansweredIndex(selectedTemplate, draft?.answers || {});
+        await renderQuestion();
       });
     });
-    document.querySelector("#editProfile").addEventListener("click", renderProfileSetup);
   }
 
   function renderConsent(template) {

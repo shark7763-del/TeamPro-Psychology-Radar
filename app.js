@@ -151,7 +151,7 @@
         <div class="hero-copy">
           <p class="eyebrow">WenMind × TeamPro</p>
           <h1>運動心理雷達</h1>
-          <p>透過心理量表，了解你近期的專注、自信、動機、壓力與心理恢復狀態。</p>
+          <p>透過心理量表，掌握近期心理狀態，作為後續心理訓練的重要參考。</p>
         </div>
         <form class="entry-form" id="nameForm" novalidate>
           <label class="field">姓名

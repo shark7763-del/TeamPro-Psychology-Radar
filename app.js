@@ -9,7 +9,6 @@
     createRepositories,
     dashboardStats,
     daysBetween,
-    dimensionCatalog,
     getTemplate,
     highConcernAnswers,
     readJson,
@@ -31,7 +30,7 @@
     athleteName: "",
     athlete: null,
     activeSession: null,
-    templateId: "quick-state-v1",
+    templateId: assessmentTemplates[0].id,
     startedAt: null,
     questionIndex: 0,
     submitStatus: "idle",
@@ -138,7 +137,7 @@
   async function getAssessmentContext(params = {}) {
     const session = await repos.assessments.getActiveSession(params);
     state.activeSession = session;
-    state.templateId = session.templateId || "quick-state-v1";
+    state.templateId = params.template || state.templateId || session.templateId || assessmentTemplates[0].id;
     return { session, template: getTemplate(state.templateId) };
   }
 
@@ -262,14 +261,31 @@
       await renderProfileSetup();
       return;
     }
-    const draft = await repos.assessments.readDraft(state.athlete.id, session.id);
+    const draft = await repos.assessments.readDraft(state.athlete.id, session.id, template.id);
     const answered = Object.keys(draft?.answers || {}).length;
     shell(`
       <section class="panel-flow">
         <p class="eyebrow">${escapeHtml(state.athlete.name)}｜${escapeHtml(state.athlete.sport)}</p>
-        <h1>${escapeHtml(template.name)}</h1>
-        <p>${escapeHtml(template.description)}</p>
-        <p class="notice">${escapeHtml(template.disclaimer)}</p>
+        <h1>選擇心理量表</h1>
+        <p>請選擇本次要填寫的心理量表。系統會依各量表的題目、量尺與構面建立獨立歷史紀錄。</p>
+        <div class="assessment-grid">
+          ${assessmentTemplates.map((item) => {
+            const active = item.id === template.id;
+            return `
+              <button class="assessment-card ${active ? "active" : ""}" data-template="${item.id}" type="button">
+                <strong>${escapeHtml(item.name)}</strong>
+                <span>${escapeHtml(item.description)}</span>
+                <small>${item.questions.length}題｜${item.points}點量尺</small>
+              </button>
+            `;
+          }).join("")}
+        </div>
+        <section class="report-section">
+          <h2>${escapeHtml(template.name)}</h2>
+          <p>${escapeHtml(template.description)}</p>
+          <p class="notice">${escapeHtml(template.disclaimer)}</p>
+          <p class="small-muted">目前進度：${answered}/${template.questions.length}</p>
+        </section>
         <div class="steps-list">
           <span>閱讀簡短使用與隱私說明</span>
           <span>逐題作答並自動暫存</span>
@@ -281,6 +297,12 @@
         </div>
       </section>
     `, { narrow: true });
+    document.querySelectorAll("[data-template]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.templateId = button.dataset.template;
+        renderAssessmentEntry(state.routeParams);
+      });
+    });
     document.querySelector("#editProfile").addEventListener("click", renderProfileSetup);
     document.querySelector("#startAssessment").addEventListener("click", () => renderConsent(template));
   }
@@ -307,7 +329,7 @@
       document.querySelector("#beginQuestions").disabled = !event.target.checked;
     });
     document.querySelector("#beginQuestions").addEventListener("click", async () => {
-      const draft = await repos.assessments.readDraft(state.athlete.id, state.activeSession.id);
+      const draft = await repos.assessments.readDraft(state.athlete.id, state.activeSession.id, template.id);
       state.startedAt = draft?.startedAt || new Date().toISOString();
       state.questionIndex = firstUnansweredIndex(template, draft?.answers || {});
       renderQuestion();
@@ -320,7 +342,7 @@
   }
 
   async function currentDraft() {
-    const existing = await repos.assessments.readDraft(state.athlete.id, state.activeSession.id);
+    const existing = await repos.assessments.readDraft(state.athlete.id, state.activeSession.id, state.templateId);
     return existing || { answers: {}, startedAt: state.startedAt || new Date().toISOString() };
   }
 
@@ -367,7 +389,7 @@
       button.addEventListener("click", async () => {
         const nextDraft = await currentDraft();
         nextDraft.answers[question.id] = Number(button.dataset.value);
-        await repos.assessments.saveDraft(state.athlete.id, state.activeSession.id, nextDraft);
+        await repos.assessments.saveDraft(state.athlete.id, state.activeSession.id, nextDraft, template.id);
         await renderQuestion();
       });
     });
@@ -866,7 +888,7 @@
           </section>
           <section class="report-section">
             <h2>高關注答案摘要</h2>
-            ${concerns.length ? `<ul class="rank-list compact">${concerns.map((item) => `<li><strong>${escapeHtml(dimensionName(item.dimension))}</strong><span>${escapeHtml(item.text)}</span></li>`).join("")}</ul>` : empty("目前沒有達到高關注題目提醒。")}
+            ${concerns.length ? `<ul class="rank-list compact">${concerns.map((item) => `<li><strong>${escapeHtml(dimensionName(template, item.dimension))}</strong><span>${escapeHtml(item.text)}</span></li>`).join("")}</ul>` : empty("目前沒有達到高關注題目提醒。")}
           </section>
         </div>
         <div class="grid-2">
@@ -921,8 +943,8 @@
     `;
   }
 
-  function dimensionName(id) {
-    return dimensionCatalog.find((item) => item.id === id)?.name || id;
+  function dimensionName(template, id) {
+    return template.dimensions?.find((item) => item.id === id)?.name || id;
   }
 
   function followUpItem(item) {

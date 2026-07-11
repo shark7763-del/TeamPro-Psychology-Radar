@@ -60,7 +60,11 @@ async function run() {
 
   const answers = Object.fromEntries(template.questions.map((question) => [question.id, 4]));
   const scores = core.scoreAnswers(template, answers);
-  assert.strictEqual(scores.length, 5, "需產生五個構面");
+  assert.strictEqual(scores.length, template.dimensions.length, "需依量表構面產生分數");
+  assert(core.assessmentTemplates.length >= 3, "需提供三種問卷讓選手選擇");
+  assert(core.assessmentTemplates.some((item) => item.name === "渥太華心理技能問卷"), "需包含渥太華心理技能問卷");
+  assert(core.assessmentTemplates.some((item) => item.name === "特質運動心理堅韌性量表"), "需包含特質運動心理堅韌性量表");
+  assert(core.assessmentTemplates.some((item) => item.name === "競賽狀態性焦慮量表"), "需包含競賽狀態性焦慮量表");
   assert(scores.every((score) => Number.isFinite(score.score)), "分數需為數字");
 
   const repos = core.createRepositories();

@@ -27,7 +27,7 @@
     staleAssessmentDays: 30
   };
 
-  const dimensionCatalog = [
+  const defaultDimensionCatalog = [
     { id: "confidence", name: "自信心", group: "心理準備", positive: true, train: "先從最近做得到的一個動作建立把握感。" },
     { id: "focus", name: "專注力", group: "心理準備", positive: true, train: "練習把注意力拉回下一個可執行動作。" },
     { id: "motivation", name: "訓練動機", group: "投入狀態", positive: true, train: "把大目標拆成一週內可完成的小任務。" },
@@ -35,40 +35,186 @@
     { id: "recovery", name: "心理疲勞／恢復", group: "身心調節", positive: true, train: "觀察睡眠、恢復與訓練負荷是否需要調整。" }
   ];
 
+  const ottawaDimensions = [
+    { id: "goal", name: "目標設定", group: "心理技能", positive: true, train: "協助選手建立每日與階段目標。" },
+    { id: "confidence", name: "自信", group: "心理技能", positive: true, train: "先了解最近影響把握感的訓練或比賽事件。" },
+    { id: "commitment", name: "承諾", group: "心理技能", positive: true, train: "檢視投入、犧牲與訓練承諾是否穩定。" },
+    { id: "relaxation", name: "放鬆", group: "身心調節", positive: true, train: "練習賽前與關鍵時刻的放鬆流程。" },
+    { id: "activation", name: "活化", group: "身心調節", positive: true, train: "建立從低落或過度放鬆回到比賽狀態的啟動流程。" },
+    { id: "fear", name: "恐懼控制", group: "身心調節", positive: true, train: "釐清訓練或比賽中引發害怕的情境。" },
+    { id: "stress", name: "壓力反應", group: "身心調節", positive: true, train: "觀察緊張、身體緊繃與失常擔心的變化。" },
+    { id: "imagery", name: "意象能力", group: "認知技能", positive: true, train: "練習產生清晰、可調整且有感覺的動作影像。" },
+    { id: "mentalPractice", name: "意象練習", group: "認知技能", positive: true, train: "安排固定且有計畫的意象練習。" },
+    { id: "concentration", name: "專注", group: "認知技能", positive: true, train: "找出失去專注的情境並建立回到當下的策略。" },
+    { id: "refocus", name: "再專注", group: "認知技能", positive: true, train: "建立失誤、混亂或突發狀況後的重置流程。" },
+    { id: "competitionPlan", name: "競賽計畫", group: "競賽準備", positive: true, train: "整理賽前習慣、提示語與比賽中可執行計畫。" }
+  ];
+
+  const toughnessDimensions = [
+    { id: "striving", name: "積極奮鬥", group: "心理堅韌", positive: true, train: "觀察選手是否持續追求進步與自我要求。" },
+    { id: "persistence", name: "堅持投入", group: "心理堅韌", positive: true, train: "了解疲累、枯燥或落後時是否仍能投入。" },
+    { id: "pressureControl", name: "抗壓控制", group: "心理堅韌", positive: true, train: "討論壓力、挑戰與落後時的穩定策略。" },
+    { id: "confidence", name: "逆境自信", group: "心理堅韌", positive: true, train: "了解表現不順或落後時的自信來源。" },
+    { id: "painTolerance", name: "傷痛忍受", group: "心理堅韌", positive: true, train: "提醒正式使用時需搭配安全界線與傷痛回報。" }
+  ];
+
+  const anxietyDimensions = [
+    { id: "cognitiveAnxiety", name: "認知焦慮", group: "競賽狀態", positive: false, train: "了解比賽前擔心、害怕失常或擔心他人評價的來源。" },
+    { id: "somaticAnxiety", name: "身體焦慮", group: "競賽狀態", positive: false, train: "觀察身體緊張、胃部不適、心跳與手心出汗。" },
+    { id: "stateConfidence", name: "狀態自信", group: "競賽狀態", positive: true, train: "確認選手面對比賽挑戰時的信心與可控感。" }
+  ];
+
   const assessmentTemplates = [
     {
-      id: "quick-state-v1",
+      id: "ottawa-mental-skills-v1",
+      version: "2026.07.demo",
+      scoringVersion: "demo-v2",
+      name: "渥太華心理技能問卷",
+      description: "檢測12種重要運動心理技能的自我評估狀態。",
+      disclaimer: "目前為展示題庫，正式使用前需確認量表授權、正式題目與計分規則。",
+      points: 5,
+      optionLabels: ["從來不曾", "很少", "偶而", "經常", "幾乎總是"],
+      dimensions: ottawaDimensions,
+      questions: makeQuestions("om", [
+        "我設定每日訓練目標",
+        "不管我遇到任何的障礙，我相信在我選擇的活動上我都可以成功",
+        "我下定決心絕不放棄我的運動專項",
+        "我覺得放鬆是容易的",
+        "在訓練過程中感到疲憊時我還會更加努力",
+        "我的運動專項上有一些事物具有潛在危險而且這些潛在危險令我害怕",
+        "我會因為太緊張而表現失常",
+        "我覺得要在腦海裡產生運動的影像是容易的",
+        "我每星期都會固定針對我的運動專項做意象練習",
+        "在重要比賽中，我會失去專注力",
+        "當我比賽時，失誤經常接二連三的發生",
+        "在比賽前我會規劃一套習慣做的事去執行",
+        "我會設定困難但可以達成的目標",
+        "在運動中即使處境艱難，我仍然可以表現得很有自信",
+        "我盡心盡力地想去成為一位傑出的運動員",
+        "我可以按照自己的意思去降低肌肉的緊繃",
+        "當我在比賽中太過放鬆時我能夠去增加自己的衝勁",
+        "我覺得訓練是困難的因為我害怕參與我的專項運動",
+        "在比賽中，我的身體會出現不必要的緊繃",
+        "我覺得要改變我腦海裡的影像是容易的",
+        "我會在心中反覆演練我最佳表現時的狀態",
+        "我在日常訓練當中會失去專注力",
+        "在比賽中感到混亂之後我很難再重新控制自己",
+        "在比賽前我會規劃一套習慣想的事來加以思考",
+        "我設定目標來改善我訓練時的表現",
+        "我相信我擁有能力可以達到自己的目標",
+        "我願意犧牲其他大多的事情來達到我在運動專項上的卓越",
+        "我覺得快速放鬆是容易的",
+        "我可以輕易的激發自己到達我最佳表現所需的理想水準",
+        "我怕輸",
+        "我覺得在比賽中，觀眾多會讓我感到緊張而失常",
+        "我在腦海裡有清晰的影像",
+        "我的意象練習是有事先規劃好的",
+        "我覺得在某些特定的練習情境下要維持專心是很困難的",
+        "我覺得在比賽時要把一些沒有預期會發生的事情拋開是困難的",
+        "我規劃了一套習慣動作在比賽中執行",
+        "我的目標促使我更加努力",
+        "我對於自己的整體表現有信心",
+        "跟我生活中的其他事物相比，我會更加投入去增強我的運動專項",
+        "在比賽的關鍵時刻我可以有效的放鬆",
+        "即使我在比賽前情緒低落，我可以輕易的讓自己活絡起來",
+        "我覺得很難透過增加對事情的控制感來降低我對訓練的恐懼",
+        "我在練習時的比賽表現比正式比賽時還要好",
+        "我可以在腦海影像當中感覺到一些動作",
+        "我會針對比賽的關鍵情境作意象練習",
+        "對我來說，要找到一個有效的策略，讓我在比賽中從頭到尾都維持專注是困難的",
+        "在訓練當中，我老是想著失誤",
+        "我有一些像提示話語的計劃，讓我能夠在比賽中告訴自己"
+      ], ottawaDimensions.map((item) => item.id), [6, 7, 10, 11, 18, 19, 22, 23, 30, 31, 34, 35, 42, 43, 46, 47])
+    },
+    {
+      id: "trait-mental-toughness-v1",
       version: "2026.07.demo",
       scoringVersion: "demo-v2",
       name: "特質運動心理堅韌性量表",
-      description: "了解近期專注、自信、動機、壓力調節與心理恢復狀態。",
+      description: "了解運動情境中的心理堅韌、抗壓、堅持與自我要求狀態。",
       disclaimer: "目前為展示題庫，正式使用前需確認量表授權、正式題目與計分規則。",
       points: 5,
-      optionLabels: ["非常不同意", "不同意", "普通", "同意", "非常同意"],
-      questions: [
-        { id: "q01", dimension: "confidence", text: "最近訓練或比賽前，我相信自己有能力完成重點任務。" },
-        { id: "q02", dimension: "focus", text: "訓練時，我能把注意力放回當下正在做的動作。" },
-        { id: "q03", dimension: "motivation", text: "即使訓練辛苦，我仍清楚知道自己為什麼要持續投入。" },
-        { id: "q04", dimension: "pressure", text: "遇到比分、成績或表現壓力時，我能逐步穩住節奏。" },
-        { id: "q05", dimension: "recovery", text: "最近我覺得自己有足夠的心理恢復空間。" },
-        { id: "q06", dimension: "confidence", text: "最近我常懷疑自己是否做得到。", reverse: true, highConcern: true },
-        { id: "q07", dimension: "focus", text: "受到失誤或外在干擾後，我能重新專注在下一個動作。" },
-        { id: "q08", dimension: "motivation", text: "最近我對訓練目標感到模糊或提不起勁。", reverse: true, highConcern: true },
-        { id: "q09", dimension: "pressure", text: "壓力升高時，我知道可以用什麼方法讓自己回到可執行狀態。" },
-        { id: "q10", dimension: "recovery", text: "最近訓練或比賽後，我常覺得心理上很難恢復。", reverse: true, highConcern: true },
-        { id: "q11", dimension: "confidence", text: "我能說出最近自己做得好的地方。" },
-        { id: "q12", dimension: "focus", text: "我能在練習中維持一段時間的穩定注意力。" },
-        { id: "q13", dimension: "motivation", text: "我願意主動完成教練安排的重點練習。" },
-        { id: "q14", dimension: "pressure", text: "面對重要測驗或比賽時，我能接受緊張並繼續行動。" },
-        { id: "q15", dimension: "recovery", text: "我知道哪些方式能幫助自己從心理疲勞中恢復。" },
-        { id: "q16", dimension: "confidence", text: "如果表現不如預期，我仍能看見下一次可以調整的方向。" },
-        { id: "q17", dimension: "focus", text: "我最近容易一直想著失誤，影響後面的表現。", reverse: true, highConcern: true },
-        { id: "q18", dimension: "motivation", text: "我覺得目前訓練和自己的目標有連結。" },
-        { id: "q19", dimension: "pressure", text: "最近我在壓力下比平常更難做出平常會的動作。", reverse: true, highConcern: true },
-        { id: "q20", dimension: "recovery", text: "我能和教練或可信任的人討論自己的疲勞與壓力。" }
-      ]
+      optionLabels: ["非常不同意", "相當不同意", "有點不同意", "有點同意", "相當同意"],
+      dimensions: toughnessDimensions,
+      questions: makeQuestions("tm", [
+        "練習時我會盡力達到自己所設定的目標",
+        "比賽時不管輸贏，我都會奮戰到底",
+        "練習時我會不斷地想去超越自己的體能",
+        "緊張的時候，我會有辦法馬上放鬆下來",
+        "如果比賽時的干擾很多，我不會分心",
+        "雖然表現的不順利，我對自己還是很有信心",
+        "有時候身上有一些傷痛，我還是會持續的參與練習",
+        "練習時我會一直想去追求進步",
+        "遇到困難時，我會保持冷靜",
+        "面對挑戰時，我會很沉穩的接受它",
+        "練習的時候身體常會有一些酸痛，我都會忍下來",
+        "為了比別人好，我會自動自發的練習",
+        "比賽時不管如何，我會努力地達成自己的目標",
+        "訓練是很嚴厲的，我通常會咬緊牙關撐過去",
+        "落後時，我還是會穩紮穩打",
+        "比賽時如果覺得壓力很大，我還是會很專心",
+        "雖然身上有一些傷痛，我還是會持續的參與訓練",
+        "練習時我會努力地去學習新的東西",
+        "練習雖然很辛苦，我還是會完全的投入",
+        "比賽時雖然落後，我通常會表現得很有自信",
+        "有壓力時，我的抗壓能力很好",
+        "比賽的時候身體常會有一些酸痛，我都會忍下來",
+        "練習時我會盡力達到教練的要求",
+        "比賽時無論如何，我會付出全力去爭取榮譽",
+        "比賽的時候如果受了一點傷，我通常會忍下來",
+        "練習雖然很累，我會要求自己做好基本動作",
+        "比賽時我通常都會從開始堅持到最後",
+        "雖然有壓力，我通常會把一切都控制的很好",
+        "訓練是很枯燥的，但我還是會堅持下去",
+        "雖然落後，我還是會積極的搶攻",
+        "我不會因為落後而覺得很緊張",
+        "練習時雖然很辛苦，我還是會自我要求"
+      ], ["striving", "persistence", "striving", "pressureControl", "pressureControl", "confidence", "painTolerance", "striving", "pressureControl", "pressureControl", "painTolerance", "striving", "persistence", "persistence", "pressureControl", "pressureControl", "painTolerance", "striving", "persistence", "confidence", "pressureControl", "painTolerance", "striving", "persistence", "painTolerance", "persistence", "persistence", "pressureControl", "persistence", "persistence", "pressureControl", "striving"])
+    },
+    {
+      id: "competition-state-anxiety-v1",
+      version: "2026.07.demo",
+      scoringVersion: "demo-v2",
+      name: "競賽狀態性焦慮量表",
+      description: "了解選手比賽前的認知焦慮、身體焦慮與狀態自信。",
+      disclaimer: "目前為展示題庫，正式使用前需確認量表授權、正式題目與計分規則。",
+      points: 4,
+      optionLabels: ["一點也不", "有點同意", "同意", "非常同意"],
+      dimensions: anxietyDimensions,
+      questions: makeQuestions("ca", [
+        "我覺得忐忑不安",
+        "我擔心自己無法在比賽中發揮應有的實力",
+        "我覺得有自信",
+        "我覺得身體緊張",
+        "我擔心會輸掉比賽",
+        "我覺得胃部緊縮",
+        "我有信心克服挑戰",
+        "我擔心在壓力下會失常",
+        "我的心跳急速",
+        "我有信心會表現很好",
+        "我擔心表現的很差",
+        "我感到胃下垂",
+        "我有自信，因為我預計能達到自己的目標",
+        "我擔心其他人對我的表現感到失望",
+        "我的手心出汗",
+        "我有信心突破壓力",
+        "我覺得身體有些緊繃"
+      ], ["somaticAnxiety", "cognitiveAnxiety", "stateConfidence", "somaticAnxiety", "cognitiveAnxiety", "somaticAnxiety", "stateConfidence", "cognitiveAnxiety", "somaticAnxiety", "stateConfidence", "cognitiveAnxiety", "somaticAnxiety", "stateConfidence", "cognitiveAnxiety", "somaticAnxiety", "stateConfidence", "somaticAnxiety"], [], ["cognitiveAnxiety", "somaticAnxiety"])
     }
   ];
+
+  function makeQuestions(prefix, texts, dimensions, reverseNumbers = [], highConcernDimensions = []) {
+    return texts.map((text, index) => {
+      const dimension = Array.isArray(dimensions) ? dimensions[index % dimensions.length] : dimensions;
+      return {
+        id: `${prefix}${String(index + 1).padStart(2, "0")}`,
+        dimension,
+        text,
+        reverse: reverseNumbers.includes(index + 1),
+        highConcern: highConcernDimensions.includes(dimension) || reverseNumbers.includes(index + 1)
+      };
+    });
+  }
 
   function uid(prefix) {
     if (global.crypto?.randomUUID) return `${prefix}_${global.crypto.randomUUID()}`;
@@ -135,7 +281,7 @@
       assessmentSessions: [{
         id: sessionId,
         groupId,
-        templateId: "quick-state-v1",
+        templateId: getTemplate().id,
         name: "特質運動心理堅韌性量表展示活動",
         startDate: todayISO(),
         endDate: todayISO(),
@@ -162,14 +308,15 @@
   }
 
   function makeDemoRecord(athleteId, groupId, sessionId, daysAgo, scoreMap) {
+    const template = getTemplate();
     const completedAt = new Date(Date.now() - daysAgo * 86400000).toISOString();
-    const dimensionScores = dimensionCatalog.map((dimension) => ({ ...dimension, score: scoreMap[dimension.id] }));
+    const dimensionScores = getDimensionCatalog(template).map((dimension, index) => ({ ...dimension, score: scoreMap[dimension.id] ?? [76, 72, 70, 68, 66, 64, 62, 74, 71, 60, 58, 69][index] ?? 65 }));
     return {
       id: uid("demo_record"),
       athleteId,
       groupId,
       assessmentSessionId: sessionId,
-      assessmentTemplateId: "quick-state-v1",
+      assessmentTemplateId: template.id,
       assessmentVersion: "2026.07.demo",
       scoringVersion: "demo-v2",
       startedAt: completedAt,
@@ -187,8 +334,12 @@
     };
   }
 
-  function getTemplate(templateId = "quick-state-v1") {
+  function getTemplate(templateId = "ottawa-mental-skills-v1") {
     return assessmentTemplates.find((template) => template.id === templateId) || assessmentTemplates[0];
+  }
+
+  function getDimensionCatalog(template) {
+    return template?.dimensions || defaultDimensionCatalog;
   }
 
   function validateAnswers(template, answers) {
@@ -201,14 +352,15 @@
     if (!validation.complete) {
       throw new Error("Incomplete answers cannot be scored.");
     }
-    return dimensionCatalog.map((dimension) => {
+    return getDimensionCatalog(template).map((dimension) => {
       const questions = template.questions.filter((question) => question.dimension === dimension.id);
       const values = questions.map((question) => {
         const raw = answers[question.id];
         return question.reverse ? template.points + 1 - raw : raw;
       });
       const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
-      return { ...dimension, score: Math.round(((avg - 1) / (template.points - 1)) * 100) };
+      const normalized = Math.round(((avg - 1) / (template.points - 1)) * 100);
+      return { ...dimension, score: dimension.positive === false ? 100 - normalized : normalized };
     });
   }
 
@@ -217,7 +369,9 @@
       .filter((question) => question.highConcern && Number.isInteger(answers[question.id]))
       .map((question) => {
         const value = answers[question.id];
-        const effective = question.reverse ? template.points + 1 - value : value;
+        const dimension = getDimensionCatalog(template).find((item) => item.id === question.dimension);
+        const reversed = question.reverse || dimension?.positive === false;
+        const effective = reversed ? template.points + 1 - value : value;
         return { id: question.id, dimension: question.dimension, text: question.text, answer: value, effectiveScore: effective };
       })
       .filter((item) => item.effectiveScore <= 2);
@@ -281,7 +435,7 @@
     if (worsening.length >= riskThresholds.multipleRiskDimensionCount) reasons.push(`${worsening.length}個構面同時惡化`);
     const concernAnswers = highConcernAnswers(template, record.answers || {});
     concernAnswers.forEach((answer) => {
-      const dimension = dimensionCatalog.find((item) => item.id === answer.dimension);
+      const dimension = getDimensionCatalog(template).find((item) => item.id === answer.dimension);
       reasons.push(`${dimension?.name || "高關注題目"}出現需要進一步了解的回答`);
     });
     let status = "green";
@@ -475,14 +629,17 @@
       }
       return session;
     }
-    async readDraft(athleteId, sessionId) {
-      const store = this.store.read();
-      return store.drafts[`${athleteId}:${sessionId}`] || null;
+    draftKey(athleteId, sessionId, templateId) {
+      return `${athleteId}:${sessionId}:${templateId || getTemplate().id}`;
     }
-    async saveDraft(athleteId, sessionId, draft) {
+    async readDraft(athleteId, sessionId, templateId) {
       const store = this.store.read();
-      const key = `${athleteId}:${sessionId}`;
-      store.drafts[key] = { ...draft, athleteId, assessmentSessionId: sessionId, updatedAt: new Date().toISOString() };
+      return store.drafts[this.draftKey(athleteId, sessionId, templateId)] || null;
+    }
+    async saveDraft(athleteId, sessionId, draft, templateId) {
+      const store = this.store.read();
+      const key = this.draftKey(athleteId, sessionId, templateId);
+      store.drafts[key] = { ...draft, athleteId, assessmentSessionId: sessionId, assessmentTemplateId: templateId || getTemplate().id, updatedAt: new Date().toISOString() };
       this.store.write(store);
       return store.drafts[key];
     }
@@ -521,7 +678,7 @@
       };
       Object.assign(record, evaluateRecord(record, previousRecord, athleteHistory, template));
       store.assessmentRecords.push(record);
-      delete store.drafts[`${athleteId}:${sessionId}`];
+      delete store.drafts[this.draftKey(athleteId, sessionId, template.id)];
       this.store.write(store);
       return record;
     }
@@ -612,7 +769,7 @@
     return {
       id: "local-session",
       groupId,
-      templateId: "quick-state-v1",
+      templateId: getTemplate().id,
       name: "特質運動心理堅韌性量表",
       startDate: todayISO(),
       endDate: "",
@@ -697,7 +854,7 @@
     SESSION_KEY,
     ATHLETE_SESSION_KEY,
     riskThresholds,
-    dimensionCatalog,
+    defaultDimensionCatalog,
     assessmentTemplates,
     getTemplate,
     validateAnswers,

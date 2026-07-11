@@ -221,6 +221,41 @@ textarea {
   color: var(--muted);
 }
 
+.assessment-grid {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.assessment-card {
+  width: 100%;
+  min-height: 92px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,.025);
+  color: var(--text);
+  padding: 14px;
+  display: grid;
+  gap: 5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.assessment-card strong {
+  font-size: 17px;
+}
+
+.assessment-card span,
+.assessment-card small {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.assessment-card.active {
+  border-color: var(--cyan);
+  background: rgba(25,216,255,.12);
+}
+
 .toolbar, .meta-row, .split-row, .page-heading {
   display: flex;
   gap: 10px;

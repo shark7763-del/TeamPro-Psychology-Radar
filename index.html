@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#05101f">
   <title>WenMind × TeamPro 心理雷達</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=20260708c">
+  <link rel="stylesheet" href="styles.css?v=20260711a">
 </head>
 <body>
   <div class="app-shell">
@@ -18,10 +18,7 @@
           <small>心理雷達 Sports Psychology Radar</small>
         </span>
       </button>
-      <nav class="role-tabs" aria-label="主要入口">
-        <button class="tab active" id="athleteTab" type="button">選手端</button>
-        <button class="tab" id="coachTab" type="button">教練端</button>
-      </nav>
+      <a class="coach-login-link" id="coachLoginLink" href="#/coach/login">心理教練登入</a>
     </header>
 
     <main id="app" class="screen" tabindex="-1"></main>
@@ -34,6 +31,7 @@
     </figure>
   </template>
 
-  <script src="app.js?v=20260708c"></script>
+  <script src="core.js?v=20260711a"></script>
+  <script src="app.js?v=20260711a"></script>
 </body>
 </html>

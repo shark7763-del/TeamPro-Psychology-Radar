@@ -1,0 +1,11 @@
+{
+  "name": "teampro-psychology-radar",
+  "version": "2.0.0",
+  "private": true,
+  "description": "WenMind x TeamPro psychology radar static SPA",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "lint": "node scripts/lint.js",
+    "test": "node scripts/test.js"
+  }
+}

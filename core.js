@@ -73,9 +73,7 @@
 
   const toughnessDimensions = [
     { id: "striving", name: "積極奮鬥", group: "心理堅韌", positive: true, train: "觀察選手是否持續追求進步與自我要求。" },
-    { id: "persistence", name: "堅持投入", group: "心理堅韌", positive: true, train: "了解疲累、枯燥或落後時是否仍能投入。" },
-    { id: "pressureControl", name: "抗壓控制", group: "心理堅韌", positive: true, train: "討論壓力、挑戰與落後時的穩定策略。" },
-    { id: "confidence", name: "逆境自信", group: "心理堅韌", positive: true, train: "了解表現不順或落後時的自信來源。" },
+    { id: "pressureControl", name: "壓力", group: "心理堅韌", positive: true, train: "討論壓力、挑戰與落後時的穩定策略。" },
     { id: "painTolerance", name: "傷痛忍受", group: "心理堅韌", positive: true, train: "提醒正式使用時需搭配安全界線與傷痛回報。" }
   ];
 
@@ -159,38 +157,27 @@
       dimensions: toughnessDimensions,
       questions: makeQuestions("tm", [
         "練習時我會盡力達到自己所設定的目標",
-        "比賽時不管輸贏，我都會奮戰到底",
         "練習時我會不斷地想去超越自己的體能",
         "緊張的時候，我會有辦法馬上放鬆下來",
         "如果比賽時的干擾很多，我不會分心",
-        "雖然表現的不順利，我對自己還是很有信心",
         "有時候身上有一些傷痛，我還是會持續的參與練習",
         "練習時我會一直想去追求進步",
         "遇到困難時，我會保持冷靜",
         "面對挑戰時，我會很沉穩的接受它",
         "練習的時候身體常會有一些酸痛，我都會忍下來",
         "為了比別人好，我會自動自發的練習",
-        "比賽時不管如何，我會努力地達成自己的目標",
-        "訓練是很嚴厲的，我通常會咬緊牙關撐過去",
         "落後時，我還是會穩紮穩打",
         "比賽時如果覺得壓力很大，我還是會很專心",
         "雖然身上有一些傷痛，我還是會持續的參與訓練",
         "練習時我會努力地去學習新的東西",
-        "練習雖然很辛苦，我還是會完全的投入",
-        "比賽時雖然落後，我通常會表現得很有自信",
         "有壓力時，我的抗壓能力很好",
         "比賽的時候身體常會有一些酸痛，我都會忍下來",
         "練習時我會盡力達到教練的要求",
-        "比賽時無論如何，我會付出全力去爭取榮譽",
         "比賽的時候如果受了一點傷，我通常會忍下來",
-        "練習雖然很累，我會要求自己做好基本動作",
-        "比賽時我通常都會從開始堅持到最後",
         "雖然有壓力，我通常會把一切都控制的很好",
-        "訓練是很枯燥的，但我還是會堅持下去",
-        "雖然落後，我還是會積極的搶攻",
         "我不會因為落後而覺得很緊張",
         "練習時雖然很辛苦，我還是會自我要求"
-      ], ["striving", "persistence", "striving", "pressureControl", "pressureControl", "confidence", "painTolerance", "striving", "pressureControl", "pressureControl", "painTolerance", "striving", "persistence", "persistence", "pressureControl", "pressureControl", "painTolerance", "striving", "persistence", "confidence", "pressureControl", "painTolerance", "striving", "persistence", "painTolerance", "persistence", "persistence", "pressureControl", "persistence", "persistence", "pressureControl", "striving"])
+      ], ["striving", "striving", "pressureControl", "pressureControl", "painTolerance", "striving", "pressureControl", "pressureControl", "painTolerance", "striving", "pressureControl", "pressureControl", "painTolerance", "striving", "pressureControl", "painTolerance", "striving", "painTolerance", "pressureControl", "pressureControl", "striving"])
     },
     {
       id: "competition-state-anxiety-v1",

@@ -734,6 +734,12 @@ textarea {
   vertical-align: middle;
 }
 
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+}
+
 .record-history {
   display: flex;
   flex-wrap: wrap;

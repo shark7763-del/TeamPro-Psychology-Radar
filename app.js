@@ -568,21 +568,28 @@
   }
 
   async function renderCoachDashboard() {
+    const { rows, stats } = await getCoachData();
+    const attention = rows.filter((row) => row.record && (row.status === "red" || row.status === "orange" || row.overdue || row.dueToday));
     coachShell("/coach/dashboard", `
-      <div class="assessment-grid coach-workspace">
-        ${[
-          ["/coach/assessments", "測驗管理", "建立測驗連結與 QR Code。"],
-          ["/coach/athletes", "填報結果", "查看選手雷達圖與分數。"],
-          ["/coach/follow-ups", "教練回覆", "回覆內容與後續紀錄。"]
-        ].map(([path, title, desc]) => `
-          <button class="assessment-card" data-nav="${path}" type="button">
-            <strong>${title}</strong>
-            <span>${desc}</span>
-          </button>
-        `).join("")}
-      </div>
+      <section class="report-section">
+        <h2>今日狀態</h2>
+        <div class="dashboard-stats">
+          ${statCard("選手總數", stats.total)}
+          ${statCard("完成填報", stats.completed)}
+          ${statCard("尚未填報", stats.pending)}
+          ${statCard("需優先關心", stats.priority)}
+          ${statCard("今日待追蹤", stats.dueToday)}
+          ${statCard("逾期未追蹤", stats.overdue)}
+        </div>
+      </section>
+      <section class="report-section">
+        <h2>需優先關心（${attention.length}）</h2>
+        ${attention.length
+          ? `<div class="priority-list">${attention.map(priorityCard).join("")}</div>`
+          : empty("目前沒有需要優先關心的選手，狀態穩定。")}
+      </section>
     `);
-    bindNav();
+    bindCoachActions();
   }
 
   function statCard(label, value) {

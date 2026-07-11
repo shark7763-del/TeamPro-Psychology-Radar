@@ -309,31 +309,6 @@ textarea {
   background: linear-gradient(90deg, var(--cyan), var(--mint));
 }
 
-.scale-legend {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.scale-legend span {
-  min-height: 48px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(255,255,255,.025);
-  color: var(--muted);
-  padding: 8px 10px;
-  display: grid;
-  gap: 2px;
-  align-content: center;
-  text-align: center;
-  line-height: 1.25;
-}
-
-.scale-legend strong {
-  color: var(--text);
-  font-size: 18px;
-}
-
 .question-card, .report-section, .callout, .status-card, .stat-card, .mobile-athlete-card, .follow-item, .session-card {
   background: linear-gradient(180deg, rgba(16,31,51,.9), rgba(8,17,31,.94));
   border: 1px solid var(--line);
@@ -342,21 +317,21 @@ textarea {
 }
 
 .question-card {
-  min-height: 430px;
-  display: flex;
-  flex-direction: column;
+  min-height: 0;
+  display: grid;
+  gap: 18px;
 }
 
 .question-text {
   color: var(--text);
-  font-size: clamp(24px, 5vw, 36px);
+  font-size: clamp(28px, 4vw, 42px);
   line-height: 1.36;
+  margin-bottom: 0;
 }
 
 .answers {
   display: grid;
   gap: 10px;
-  margin-top: auto;
 }
 
 .answer-option {
@@ -714,12 +689,8 @@ textarea {
     min-height: auto;
   }
 
-  .question-card {
-    min-height: calc(100vh - 280px);
-  }
-
-  .scale-legend {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .question-text {
+    font-size: 28px;
   }
 
   .bottom-actions {
@@ -779,8 +750,14 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .scale-legend {
-    grid-template-columns: 1fr;
+  .question-text {
+    font-size: 24px;
+    line-height: 1.32;
+  }
+
+  .answer-option {
+    min-height: 48px;
+    padding: 10px 12px;
   }
 
   .toolbar {

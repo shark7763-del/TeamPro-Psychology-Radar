@@ -295,7 +295,7 @@
       <section class="panel-flow">
         <p class="eyebrow">${escapeHtml(template.name)}</p>
         <h1>開始前請閱讀</h1>
-        <p>這份結果提供自我了解與後續溝通參考，不代表醫療或心理疾病診斷。</p>
+        <p>本結果僅供自我了解及後續心理訓練內容規劃與討論之參考。</p>
         <p>心理教練後台會看到構面分數、狀態變化與追蹤紀錄，不會在一般頁面公開你的完整個人資料。</p>
         <label class="check-row">
           <input id="agreeCheck" type="checkbox">

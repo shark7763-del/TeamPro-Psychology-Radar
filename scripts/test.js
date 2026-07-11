@@ -39,7 +39,6 @@ async function run() {
   assert(app.includes("/coach/login"), "教練登入路由需存在");
   assert(app.includes("/coach/dashboard"), "教練後台路由需存在");
   assert(app.includes("currentSession"), "未登入需檢查session");
-  assert(app.includes("尚無前次資料，本次結果將作為個人基準。"), "無前次資料不可顯示假趨勢");
   assert(!coreText.includes("fillAttempt"), "不可自動補答");
   assert(!coreText.includes("previousScores"), "不可製造假前測");
   assert(!app.includes("本週需關注"), "不可寫死關注人數");
@@ -65,6 +64,7 @@ async function run() {
   assert(core.assessmentTemplates.some((item) => item.name === "渥太華心理技能問卷"), "需包含渥太華心理技能問卷");
   assert(core.assessmentTemplates.some((item) => item.name === "特質運動心理堅韌性量表"), "需包含特質運動心理堅韌性量表");
   assert(core.assessmentTemplates.some((item) => item.name === "競賽狀態性焦慮量表"), "需包含競賽狀態性焦慮量表");
+  assert(app.includes("測驗管理") && app.includes("填報結果") && app.includes("教練回覆"), "後台只保留三個區塊");
   assert(scores.every((score) => Number.isFinite(score.score)), "分數需為數字");
 
   const repos = core.createRepositories();

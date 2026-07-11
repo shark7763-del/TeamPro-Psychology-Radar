@@ -506,10 +506,9 @@
           </div>
           <nav>
             ${[
-              ["/coach/dashboard", "今日狀態"],
-              ["/coach/athletes", "所有選手"],
               ["/coach/assessments", "測驗管理"],
-              ["/coach/follow-ups", "追蹤紀錄"]
+              ["/coach/athletes", "填報結果"],
+              ["/coach/follow-ups", "教練回覆"]
             ].map(([path, label]) => `<a class="${active === path ? "active" : ""}" href="#${path}">${label}</a>`).join("")}
           </nav>
           <button class="ghost" id="logoutButton" type="button">登出</button>
@@ -534,54 +533,25 @@
   }
 
   async function renderCoachDashboard() {
-    showLoading();
-    const { rows, followUps, stats } = await getCoachData();
-    const priorityRows = rows.filter((row) => row.status === "red" || row.status === "orange" || row.overdue).slice(0, 8);
-    const pendingRows = rows.filter((row) => !row.record);
-    const dueRows = rows.filter((row) => row.dueToday || row.overdue);
     coachShell("/coach/dashboard", `
-      <div class="page-heading">
-        <div>
-          <p class="eyebrow">今日心理狀態</p>
-          <h1>先看誰需要關心</h1>
-        </div>
-        <button class="ghost" type="button" id="exportStatus">匯出CSV</button>
-      </div>
-      <div class="stats-grid wide">
-        ${statCard("選手總數", stats.total)}
-        ${statCard("本次已完成", stats.completed)}
-        ${statCard("尚未完成", stats.pending)}
-        ${statCard("狀態穩定", stats.stable)}
-        ${statCard("建議留意", stats.watch)}
-        ${statCard("優先關心", stats.priority)}
-        ${statCard("今日待追蹤", stats.dueToday)}
-        ${statCard("已逾期未追蹤", stats.overdue)}
-      </div>
-      <section>
-        <h2>優先關心</h2>
-        ${priorityRows.length ? `<div class="priority-list">${priorityRows.map(priorityCard).join("")}</div>` : empty("目前沒有需要優先關心的選手。")}
-      </section>
-      <div class="grid-2">
-        <section class="report-section">
-          <h2>尚未完成</h2>
-          ${pendingRows.length ? `<div class="mini-list">${pendingRows.map((row) => `<span>${escapeHtml(row.athlete.name)}｜${escapeHtml(row.athlete.sport || "未設定")}</span>`).join("")}</div>` : empty("尚未有未完成名單。")}
-        </section>
-        <section class="report-section">
-          <h2>今天要追蹤</h2>
-          ${dueRows.length ? `<div class="mini-list">${dueRows.map((row) => `<span>${escapeHtml(row.athlete.name)}｜${row.overdue ? "已逾期" : "今日追蹤"}</span>`).join("")}</div>` : empty("今天沒有需要追蹤的紀錄。")}
-        </section>
-      </div>
-      <section class="report-section">
-        <h2>追蹤概況</h2>
-        <div class="meta-row">
-          <span class="meta-pill">尚未完成第一次關心：${stats.notCared}</span>
-          <span class="meta-pill">持續觀察中：${stats.observing}</span>
-          <span class="meta-pill">已改善：${stats.improved}</span>
+      <section class="panel-flow">
+        <p class="eyebrow">運動心理教練後台</p>
+        <h1>工作區</h1>
+        <div class="assessment-grid">
+          ${[
+            ["/coach/assessments", "測驗管理", "建立測驗連結與 QR Code。"],
+            ["/coach/athletes", "填報結果", "查看選手雷達圖與分數。"],
+            ["/coach/follow-ups", "教練回覆", "回覆內容與後續紀錄。"]
+          ].map(([path, title, desc]) => `
+            <button class="assessment-card" data-nav="${path}" type="button">
+              <strong>${title}</strong>
+              <span>${desc}</span>
+            </button>
+          `).join("")}
         </div>
       </section>
     `);
-    bindCoachActions();
-    document.querySelector("#exportStatus").addEventListener("click", () => exportRows(rows, followUps));
+    bindNav();
   }
 
   function statCard(label, value) {
@@ -634,58 +604,31 @@
 
   async function renderAllAthletes() {
     const { rows, followUps } = await getCoachData();
-    const filtered = filterRows(rows);
+    const completed = rows.filter((row) => row.record);
     coachShell("/coach/athletes", `
       <div class="page-heading">
         <div>
-          <p class="eyebrow">所有選手</p>
-          <h1>依狀態排序檢視</h1>
+          <p class="eyebrow">填報結果</p>
+          <h1>結果清單</h1>
         </div>
-        <button class="ghost" id="exportAthletes" type="button">匯出CSV</button>
       </div>
-      <div class="filter-bar">
-        ${["all:全部", "red:優先關心", "orange:建議留意", "green:狀態穩定", "gray:尚未完成", "unviewed:尚未查看", "uncared:尚未關心", "today:今日待追蹤", "overdue:已逾期追蹤"].map((entry) => {
-          const [value, label] = entry.split(":");
-          return `<button class="${state.filter === value ? "active" : ""}" data-filter="${value}" type="button">${label}</button>`;
-        }).join("")}
-      </div>
-      <div class="search-row">
-        <input id="searchInput" placeholder="搜尋姓名或運動項目" value="${escapeHtml(state.search)}">
-        <select id="dateFilter">
-          <option value="all" ${state.dateFilter === "all" ? "selected" : ""}>全部日期</option>
-          <option value="7" ${state.dateFilter === "7" ? "selected" : ""}>最近7天</option>
-          <option value="30" ${state.dateFilter === "30" ? "selected" : ""}>最近30天</option>
-          <option value="custom" ${state.dateFilter === "custom" ? "selected" : ""}>自訂日期</option>
-        </select>
-        <input id="customStart" type="date" value="${escapeHtml(state.customStart)}">
-        <input id="customEnd" type="date" value="${escapeHtml(state.customEnd)}">
-      </div>
-      ${filtered.length ? `
-        <div class="athlete-table-wrap">
-          <table class="score-table athlete-table">
-            <thead><tr><th>姓名</th><th>運動項目</th><th>最新回報時間</th><th>整體狀態</th><th>自信心</th><th>專注力</th><th>訓練動機</th><th>壓力／焦慮調節</th><th>心理疲勞／恢復</th><th>與上次比較</th><th>已查看</th><th>已關心</th><th>下次追蹤</th></tr></thead>
-            <tbody>${filtered.map(tableRow).join("")}</tbody>
-          </table>
-        </div>
-        <div class="mobile-card-list">${filtered.map(mobileAthleteCard).join("")}</div>
-      ` : empty("目前沒有符合條件的選手。")}
+      ${completed.length ? `
+        <div class="priority-list">${completed.map((row) => `
+          <article class="status-card ${row.status}">
+            <div class="split-row">
+              <div>
+                <h3>${escapeHtml(row.athlete.name)}｜${escapeHtml(row.athlete.sport || "未設定")}</h3>
+                <span class="status-dot ${row.status}">${escapeHtml(statusLabel(row.status))}</span>
+              </div>
+              <span class="small-muted">${formatDateTime(row.record.completedAt)}</span>
+            </div>
+            <div class="toolbar">
+              <button class="primary" data-nav="/coach/athletes/${row.athlete.id}" type="button">查看結果</button>
+            </div>
+          </article>
+        `).join("")}</div>
+      ` : empty("目前沒有填報結果。")}
     `);
-    document.querySelectorAll("[data-filter]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.filter = button.dataset.filter;
-        renderAllAthletes();
-      });
-    });
-    ["searchInput", "dateFilter", "customStart", "customEnd"].forEach((id) => {
-      document.querySelector(`#${id}`).addEventListener("input", (event) => {
-        if (id === "searchInput") state.search = event.target.value;
-        if (id === "dateFilter") state.dateFilter = event.target.value;
-        if (id === "customStart") state.customStart = event.target.value;
-        if (id === "customEnd") state.customEnd = event.target.value;
-        renderAllAthletes();
-      });
-    });
-    document.querySelector("#exportAthletes").addEventListener("click", () => exportRows(filtered, followUps));
     bindCoachActions();
   }
 
@@ -720,7 +663,7 @@
     const record = row.record;
     const compare = record?.changeFromPrevious
       ? record.changeFromPrevious.filter((item) => item.delta < 0).slice(0, 2).map((item) => `${item.name}${item.delta}%`).join("；") || "無明顯下降"
-      : "尚無前次資料";
+      : "—";
     return `
       <tr data-nav="/coach/athletes/${row.athlete.id}">
         <td>${escapeHtml(row.athlete.name)}</td>
@@ -780,9 +723,6 @@
       `);
       return;
     }
-    const template = getTemplate(record.assessmentTemplateId);
-    const concerns = highConcernAnswers(template, record.answers);
-    const previous = records[1];
     coachShell("/coach/athletes", `
       <section class="athlete-detail">
         <div class="page-heading">
@@ -790,61 +730,24 @@
             <p class="eyebrow">${escapeHtml(athlete.sport || "未設定")}</p>
             <h1>${escapeHtml(athlete.name)}</h1>
           </div>
-          <button class="ghost" data-nav="/coach/athletes" type="button">回所有選手</button>
+          <button class="ghost" data-nav="/coach/athletes" type="button">回結果清單</button>
         </div>
-        <section class="callout">
-          <h2>${escapeHtml(record.aiSummary)}</h2>
-          <span class="status-dot ${record.overallStatus}">${escapeHtml(statusLabel(record.overallStatus))}</span>
-        </section>
-        <div class="grid-2">
-          <section class="report-section">
-            <h2>為什麼被提醒</h2>
-            ${record.alertReasons.length ? `<ul class="rank-list compact">${record.alertReasons.map((reason) => `<li><strong>${escapeHtml(reason)}</strong></li>`).join("")}</ul>` : empty("目前沒有達到提醒條件。")}
-          </section>
-          <section class="report-section">
-            <h2>建議先詢問</h2>
-            <p>${escapeHtml(record.suggestedQuestion)}</p>
-          </section>
-        </div>
-        <div class="report-grid">
+        <section class="report-section">
+          <h2>雷達圖</h2>
           <div id="detailRadar"></div>
-          <section class="report-section">
-            <h2>與上一次雷達圖比較</h2>
-            ${previous ? scoreComparisonTable(record, previous) : empty("尚無前次資料，本次結果將作為個人基準。")}
-          </section>
         </div>
         <section class="report-section">
-          <h2>最近四週趨勢</h2>
-          ${records.length > 1 ? trendList(records) : empty("尚無歷史資料，本次將作為個人基準。")}
+          <h2>分數</h2>
+          ${scoreTable(record.dimensionScores)}
         </section>
-        <div class="grid-2">
-          <section class="report-section">
-            <h2>各構面詳細分數</h2>
-            ${scoreTable(record.dimensionScores)}
-          </section>
-          <section class="report-section">
-            <h2>高關注答案摘要</h2>
-            ${concerns.length ? `<ul class="rank-list compact">${concerns.map((item) => `<li><strong>${escapeHtml(dimensionName(template, item.dimension))}</strong><span>${escapeHtml(item.text)}</span></li>`).join("")}</ul>` : empty("目前沒有達到高關注題目提醒。")}
-          </section>
-        </div>
-        <div class="grid-2">
-          <section class="report-section">
-            <h2>個人優勢</h2>
-            <ul class="rank-list compact">${[...record.dimensionScores].sort((a, b) => b.score - a.score).slice(0, 2).map((item) => `<li><strong>${escapeHtml(item.name)}</strong><span>${item.score}</span></li>`).join("")}</ul>
-          </section>
-          <section class="report-section">
-            <h2>需要持續觀察</h2>
-            <ul class="rank-list compact">${[...record.dimensionScores].sort((a, b) => a.score - b.score).slice(0, 2).map((item) => `<li><strong>${escapeHtml(item.name)}</strong><span>${item.score}</span></li>`).join("")}</ul>
-          </section>
-        </div>
         <section class="report-section">
-          <h2>教練關心紀錄</h2>
-          ${followUps.length ? `<div class="follow-list">${followUps.map(followUpItem).join("")}</div>` : empty("尚無關心紀錄。")}
+          <h2>教練回覆</h2>
+          ${followUps.length ? `<div class="follow-list">${followUps.map(followUpItem).join("")}</div>` : empty("尚無回覆。")}
           ${followUpForm(record, athlete)}
         </section>
       </section>
     `);
-    drawRadarInto("#detailRadar", record.dimensionScores, previous?.dimensionScores || null, previous ? "亮色為本次，淡色虛線為真實前次紀錄。" : "尚無前次資料，本次結果將作為個人基準。");
+    drawRadarInto("#detailRadar", record.dimensionScores, null, "雷達圖範圍固定為0至100。");
     bindNav();
     bindFollowUpForm();
   }
@@ -967,22 +870,16 @@
     coachShell("/coach/follow-ups", `
       <div class="page-heading">
         <div>
-          <p class="eyebrow">追蹤紀錄</p>
-          <h1>今日與逾期追蹤</h1>
+          <p class="eyebrow">教練回覆</p>
+          <h1>回覆內容</h1>
         </div>
       </div>
-      <div class="stats-grid">
-        ${statCard("今日待追蹤", rows.filter((row) => row.dueToday).length)}
-        ${statCard("已逾期未追蹤", rows.filter((row) => row.overdue).length)}
-        ${statCard("持續觀察中", followUps.filter((item) => item.status === "observing").length)}
-        ${statCard("已改善", followUps.filter((item) => item.status === "improved").length)}
-      </div>
       <section class="report-section">
-        <h2>全部追蹤紀錄</h2>
+        <h2>回覆列表</h2>
         ${followUps.length ? `<div class="follow-list">${followUps.map((item) => {
           const row = rows.find((candidate) => candidate.athlete.id === item.athleteId);
-          return `<article class="follow-item"><strong>${escapeHtml(row?.athlete.name || "未知選手")}｜${escapeHtml(followStatusLabel(item.status))}</strong><p>${escapeHtml(item.note || "未填寫紀錄")}</p><p class="small-muted">追蹤日期：${item.followUpDate || "未設定"}</p></article>`;
-        }).join("")}</div>` : empty("今天沒有需要追蹤的紀錄。")}
+          return `<article class="follow-item"><strong>${escapeHtml(row?.athlete.name || "未知選手")}</strong><p>${escapeHtml(item.note || "未填寫回覆")}</p><p class="small-muted">${escapeHtml(item.athleteResponse || "未填寫")}｜${escapeHtml(item.nextAction || "未填寫")}</p></article>`;
+        }).join("")}</div>` : empty("尚無回覆內容。")}
       </section>
     `);
   }

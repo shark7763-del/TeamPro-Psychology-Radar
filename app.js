@@ -457,8 +457,8 @@
             <ul class="rank-list compact">${watch.map((item) => `<li><strong>${escapeHtml(item.name)}</strong><span>${item.score}</span></li>`).join("")}</ul>
           </section>
         </div>
+        <div id="resultRadar"></div>
         <div class="toolbar">
-          <button class="ghost" id="showRadar" type="button">查看我的心理雷達</button>
           <button class="ghost" id="showAdvice" type="button">查看簡短建議</button>
           <button class="primary" type="button" data-nav="/">完成並離開</button>
         </div>
@@ -467,10 +467,7 @@
       </section>
     `, { narrow: true });
     bindNav();
-    document.querySelector("#showRadar").addEventListener("click", () => {
-      document.querySelector("#resultDetail").innerHTML = `<div id="resultRadar"></div>`;
-      drawRadarInto("#resultRadar", record.dimensionScores, null, "雷達圖範圍固定為0至100。");
-    });
+    drawRadarInto("#resultRadar", record.dimensionScores, null, "雷達圖範圍固定為0至100。");
     document.querySelector("#showAdvice").addEventListener("click", () => {
       document.querySelector("#resultDetail").innerHTML = `
         <section class="report-section">

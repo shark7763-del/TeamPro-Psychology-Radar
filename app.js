@@ -759,7 +759,10 @@
             <p class="eyebrow">${escapeHtml(athlete.sport || "未設定")}</p>
             <h1>${escapeHtml(athlete.name)}</h1>
           </div>
-          <button class="ghost" data-nav="/coach/athletes" type="button">回結果清單</button>
+          <div class="toolbar">
+            <button class="primary" id="genAthleteReport" type="button">產出報告</button>
+            <button class="ghost" data-nav="/coach/athletes" type="button">回結果清單</button>
+          </div>
         </div>
         <section class="report-section">
           <h2>雷達圖</h2>
@@ -781,6 +784,93 @@
     drawRadarInto("#detailRadar", record.dimensionScores, null, "雷達圖範圍固定為0至100。");
     bindNav();
     bindFollowUpForm();
+    document.querySelector("#genAthleteReport")?.addEventListener("click", () => {
+      showAthleteReport(athlete, record, records, followUps);
+    });
+  }
+
+  function athleteReportText(athlete, record, followUps) {
+    const scores = record.dimensionScores || [];
+    const watch = [...scores].sort((a, b) => a.score - b.score).slice(0, 3).map((item) => item.name).join("、") || "資料不足";
+    const drops = (record.changeFromPrevious || []).filter((item) => item.delta < 0)
+      .sort((a, b) => a.delta - b.delta).slice(0, 2)
+      .map((item) => `${item.name}下降${Math.abs(item.delta)}%`).join("；") || "尚無明顯下降或無前次資料";
+    const latest = followUps[0];
+    return [
+      "【心理狀態報告】",
+      `選手：${athlete.name}｜${athlete.sport || "未設定"}`,
+      `完成時間：${formatDateTime(record.completedAt)}`,
+      `整體狀態：${statusLabel(record.overallStatus)}`,
+      `最需要注意：${watch}`,
+      `與上次相比：${drops}`,
+      `一句話摘要：${record.aiSummary || "—"}`,
+      `建議詢問：${record.suggestedQuestion || "—"}`,
+      `分數：${scores.map((item) => `${item.name}${item.score}`).join("、") || "無"}`,
+      latest ? `最近關心：${followStatusLabel(latest.status)}｜${latest.note || "—"}` : "最近關心：尚無紀錄"
+    ].join("\n");
+  }
+
+  function showAthleteReport(athlete, record, records, followUps) {
+    const scores = record.dimensionScores || [];
+    const watch = [...scores].sort((a, b) => a.score - b.score).slice(0, 3).map((item) => escapeHtml(item.name)).join("、") || "資料不足";
+    const changes = record.changeFromPrevious || [];
+    const changeRows = changes.length
+      ? changes.map((item) => `<tr><td>${escapeHtml(item.name)}</td><td>${item.delta > 0 ? "+" : ""}${item.delta}%</td></tr>`).join("")
+      : `<tr><td colspan="2">尚無前次資料可比較</td></tr>`;
+    const historyRows = followUps.length
+      ? followUps.map((item) => `<tr><td>${item.updatedAt ? formatDate(item.updatedAt) : "—"}</td><td>${escapeHtml(followStatusLabel(item.status))}</td><td>${escapeHtml(item.note || "—")}</td><td>${escapeHtml(item.nextAction || "—")}</td><td>${item.followUpDate || "—"}</td></tr>`).join("")
+      : `<tr><td colspan="5">尚無關心與追蹤紀錄</td></tr>`;
+    const completedCount = (records || []).length;
+    shell(`
+      <section class="athlete-report report-print">
+        <div class="toolbar no-print">
+          <button class="ghost" type="button" id="reportBack">返回</button>
+          <button class="ghost" type="button" id="reportCopy">複製文字（給LINE）</button>
+          <button class="primary" type="button" id="reportPrint">列印／儲存PDF</button>
+        </div>
+        <header class="report-head">
+          <h1>心理狀態報告</h1>
+          <p class="report-name">${escapeHtml(athlete.name)}｜${escapeHtml(athlete.sport || "未設定")}</p>
+          <p class="report-meta">完成時間：${formatDateTime(record.completedAt)}　｜　整體狀態：${escapeHtml(statusLabel(record.overallStatus))}　｜　累計填報：${completedCount} 次</p>
+        </header>
+        <section class="report-block">
+          <h2>雷達圖</h2>
+          <div id="reportRadar"></div>
+        </section>
+        <section class="report-block">
+          <h2>構面分數</h2>
+          ${scoreTable(scores)}
+          <p class="report-note"><strong>本次最需要注意：</strong>${watch}</p>
+        </section>
+        <section class="report-block">
+          <h2>與上次相比</h2>
+          <table class="score-table"><thead><tr><th>構面</th><th>變化</th></tr></thead><tbody>${changeRows}</tbody></table>
+        </section>
+        <section class="report-block">
+          <h2>摘要與建議</h2>
+          <p class="report-note"><strong>一句話摘要：</strong>${escapeHtml(record.aiSummary || "—")}</p>
+          <p class="report-note"><strong>建議詢問：</strong>${escapeHtml(record.suggestedQuestion || "—")}</p>
+        </section>
+        <section class="report-block">
+          <h2>關心與追蹤紀錄</h2>
+          <table class="score-table"><thead><tr><th>日期</th><th>狀態</th><th>紀錄</th><th>後續處理</th><th>下次追蹤</th></tr></thead><tbody>${historyRows}</tbody></table>
+        </section>
+        <footer class="report-foot">本報告僅供自我了解與後續心理訓練規劃、溝通參考，不作為醫療或心理診斷依據。</footer>
+      </section>
+    `);
+    drawRadarInto("#reportRadar", scores, null, "雷達圖範圍固定為0至100。");
+    document.querySelector("#reportBack").addEventListener("click", () => renderAthleteDetail({ athleteId: athlete.id }));
+    document.querySelector("#reportPrint").addEventListener("click", () => window.print());
+    document.querySelector("#reportCopy").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      try {
+        await navigator.clipboard.writeText(athleteReportText(athlete, record, followUps));
+        button.textContent = "已複製";
+        setTimeout(() => { button.textContent = "複製文字（給LINE）"; }, 1500);
+      } catch {
+        button.textContent = "請手動複製";
+      }
+    });
   }
 
   function scoreComparisonTable(record, previous) {
@@ -854,7 +944,7 @@
           <textarea id="followNote" placeholder="記錄教練的回饋與分析"></textarea>
         </label>
         <div class="toolbar">
-          <button class="ghost" type="button" id="generateFollowReport">產出報告</button>
+          <button class="ghost" type="button" id="generateFollowReport">帶入摘要</button>
           <button class="primary" type="submit">儲存</button>
         </div>
       </form>
@@ -875,7 +965,11 @@
         <p>把連結或 QR Code 給選手，選手開啟後可自行選擇要填寫的心理量表。</p>
         ${sessions.map((session) => {
           const link = `${location.origin}${location.pathname}#/assessment?group=${encodeURIComponent(session.groupId)}&assessment=${encodeURIComponent(session.id)}&token=${encodeURIComponent(session.token)}`;
-          const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=${encodeURIComponent(link)}`;
+          // 預設場次用資料夾內離線 QR 圖（QR 碼.png，已確認指向同一連結）；其他場次才即時產生。
+          const staticLink = "https://shark7763-del.github.io/TeamPro-Psychology-Radar/#/assessment?group=local-group&assessment=local-session&token=local-link";
+          const qrSrc = link === staticLink
+            ? encodeURI("QR 碼.png")
+            : `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=${encodeURIComponent(link)}`;
           return `
             <article class="session-card">
               <h3>${escapeHtml(session.name)}</h3>

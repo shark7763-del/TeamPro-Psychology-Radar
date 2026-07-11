@@ -145,6 +145,7 @@
   async function renderAthleteName(params = {}) {
     await getAssessmentContext(params);
     const previous = readJson(ATHLETE_SESSION_KEY, null);
+    const previousAthlete = previous?.athleteId ? await repos.athletes.findById(previous.athleteId) : null;
     shell(`
       <section class="athlete-hero">
         <div class="hero-copy">
@@ -153,8 +154,11 @@
           <p>透過心理量表，了解你近期的專注、自信、動機、壓力與心理恢復狀態。</p>
         </div>
         <form class="entry-form" id="nameForm" novalidate>
-          <label class="field">請輸入你的姓名
-            <input id="athleteName" autocomplete="name" placeholder="例如：王小明" value="${escapeHtml(previous?.name || "")}">
+          <label class="field">姓名
+            <input id="athleteName" autocomplete="name" placeholder="例如：王小明" value="${escapeHtml(previousAthlete?.name || previous?.name || "")}">
+          </label>
+          <label class="field">運動項目
+            <input id="athleteSport" placeholder="例如：籃球、游泳、跆拳道、田徑、羽球、體操" value="${escapeHtml(previousAthlete?.sport || "")}">
           </label>
           <p class="form-error" id="nameError" aria-live="polite"></p>
           <button class="primary" type="submit">開始使用</button>
@@ -164,27 +168,37 @@
     document.querySelector("#nameForm").addEventListener("submit", async (event) => {
       event.preventDefault();
       const name = document.querySelector("#athleteName").value.trim();
+      const sport = document.querySelector("#athleteSport").value.trim();
       if (!name) {
         document.querySelector("#nameError").textContent = "請先輸入姓名。";
+        return;
+      }
+      if (!sport) {
+        document.querySelector("#nameError").textContent = "請輸入運動項目。";
         return;
       }
       state.athleteName = name;
       const savedSession = readJson(ATHLETE_SESSION_KEY, null);
       const savedAthlete = savedSession?.athleteId ? await repos.athletes.findById(savedSession.athleteId) : null;
-      if (savedAthlete && savedAthlete.name === name && savedAthlete.sport) {
-        state.athlete = savedAthlete;
+      if (savedAthlete && savedAthlete.name === name) {
+        state.athlete = await repos.athletes.upsertProfile({ ...savedAthlete, name, sport });
         navigate(`/assessment${queryFromParams(state.routeParams)}`);
         return;
       }
       const matches = await repos.athletes.findByName(name);
-      if (matches.length === 1 && matches[0].sport) {
-        state.athlete = matches[0];
-        writeJson(ATHLETE_SESSION_KEY, { athleteId: matches[0].id, name, updatedAt: new Date().toISOString() });
+      if (matches.length === 1) {
+        state.athlete = await repos.athletes.upsertProfile({ ...matches[0], name, sport });
+        writeJson(ATHLETE_SESSION_KEY, { athleteId: state.athlete.id, name, updatedAt: new Date().toISOString() });
         navigate(`/assessment${queryFromParams(state.routeParams)}`);
         return;
       }
-      state.athlete = matches[0] || { name };
-      await renderProfileSetup();
+      state.athlete = await repos.athletes.upsertProfile({
+        name,
+        sport,
+        groupId: state.activeSession?.groupId || state.routeParams.group || "local-group",
+        inviteToken: state.routeParams.token || ""
+      });
+      navigate(`/assessment${queryFromParams(state.routeParams)}`);
     });
   }
 

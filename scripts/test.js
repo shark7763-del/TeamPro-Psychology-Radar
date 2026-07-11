@@ -33,6 +33,7 @@ async function run() {
   assert(!coreText.includes("對練選手"), "不可保留預設跆拳道項目");
   assert(app.includes("請先輸入姓名。"), "姓名空白錯誤訊息需存在");
   assert(app.includes(".value.trim()"), "姓名需trim");
+  assert(app.includes("id=\"athleteSport\""), "首頁需直接呈現運動項目欄位");
   assert(app.includes("placeholder=\"例如：籃球、游泳、跆拳道、田徑、羽球、體操\""), "運動項目需自由輸入提示");
   assert(!app.includes("<select id=\"profileSport\""), "運動項目不可使用select");
   assert(app.includes("/coach/login"), "教練登入路由需存在");

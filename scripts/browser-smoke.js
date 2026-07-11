@@ -114,7 +114,7 @@ async function main() {
   const failures = [];
   for (const check of result.checks) {
     if (check.overflow) failures.push(`${check.route} overflows at ${check.width}px`);
-    if (check.route === "#/" && !check.text.includes("請輸入你的姓名")) failures.push("home missing name field");
+    if (check.route === "#/" && (!check.text.includes("姓名") || !check.text.includes("運動項目"))) failures.push("home missing athlete fields");
     if (check.route === "#/coach/login" && !check.text.includes("教練帳號")) failures.push("coach login missing account field");
   }
   const dashboard = result.checks.find((check) => check.route === "#/coach/dashboard");

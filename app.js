@@ -599,6 +599,25 @@
       : "";
   }
 
+  // 選手做過的所有測驗紀錄（含不同量表），可點選切換查看，預設看最新一筆。
+  function recordHistoryList(records, selectedId, athleteId) {
+    if (!records || records.length <= 1) return "";
+    return `
+      <section class="report-section">
+        <h2>測驗紀錄（${records.length}）</h2>
+        <p class="small-muted">同一位選手做過的每份量表都會保留，點選即可切換查看。</p>
+        <div class="record-history">
+          ${records.map((rec) => `
+            <button class="record-chip ${rec.id === selectedId ? "active" : ""}" type="button" data-nav="/coach/athletes/${athleteId}?record=${rec.id}">
+              <strong>${escapeHtml(assessmentName(rec))}</strong>
+              <span>${formatDateTime(rec.completedAt)}｜${escapeHtml(statusLabel(rec.overallStatus))}</span>
+            </button>
+          `).join("")}
+        </div>
+      </section>
+    `;
+  }
+
   function priorityCard(row) {
     const record = row.record;
     const changes = record?.changeFromPrevious?.filter((item) => item.delta < 0).sort((a, b) => a.delta - b.delta).slice(0, 2) || [];
@@ -751,7 +770,7 @@
       repos.assessments.recordsForAthlete(athlete.id),
       repos.followUps.forAthlete(athlete.id)
     ]);
-    const record = records[0];
+    const record = records.find((item) => item.id === params.record) || records[0];
     if (!record) {
       coachShell("/coach/athletes", `
         <section class="panel-flow">
@@ -777,6 +796,7 @@
             <button class="ghost" data-nav="/coach/athletes" type="button">回結果清單</button>
           </div>
         </div>
+        ${recordHistoryList(records, record.id, athlete.id)}
         <section class="report-section">
           <h2>雷達圖</h2>
           <div id="detailRadar"></div>

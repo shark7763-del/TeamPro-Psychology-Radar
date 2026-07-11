@@ -29,6 +29,8 @@
     routeParams: {},
     athleteName: "",
     athlete: null,
+    currentAthleteName: "",
+    currentCoachRecord: null,
     activeSession: null,
     templateId: assessmentTemplates[0].id,
     startedAt: null,
@@ -86,6 +88,26 @@
     await renderRoute();
   }
 
+  async function syncPull() {
+    if (typeof repos.store.pull === "function") {
+      try {
+        await repos.store.pull();
+      } catch {
+        /* 離線時沿用本機快取，不阻斷畫面 */
+      }
+    }
+  }
+
+  async function syncFlush() {
+    if (typeof repos.store.flush === "function") {
+      try {
+        await repos.store.flush();
+      } catch {
+        /* 送出失敗會保留在本機快取，下次寫入時重送 */
+      }
+    }
+  }
+
   async function renderRoute() {
     const parsed = parseRoute(currentHashPath());
     state.route = parsed.name;
@@ -99,6 +121,8 @@
         return;
       }
     }
+    // 每次切換畫面先與後台同步一次，確保教練看到選手最新填報、選手拿到最新測驗設定。
+    await syncPull();
     const handlers = {
       "/": renderAthleteName,
       "/assessment": renderAssessmentEntry,
@@ -415,6 +439,8 @@
         answers: draft.answers,
         startedAt: draft.startedAt
       });
+      // 確認本次填報已送達後台，再帶選手到結果頁。
+      await syncFlush();
       state.submitStatus = "success";
       state.submitError = "";
       renderAthleteResult(record.id);
@@ -443,6 +469,9 @@
           <h1>恭喜你完成測驗</h1>
         </div>
         <div id="resultRadar"></div>
+        <div class="score-badges">
+          ${scoreBadges(record.dimensionScores)}
+        </div>
         <section class="report-section">
           <h2>分數</h2>
           ${scoreTable(record.dimensionScores)}
@@ -496,23 +525,25 @@
   }
 
   function coachShell(active, content) {
+    const links = [
+      ["/coach/dashboard", "今日狀態"],
+      ["/coach/assessments", "測驗管理"],
+      ["/coach/athletes", "填報結果"],
+      ["/coach/follow-ups", "教練回覆"]
+    ];
     shell(`
       <section class="coach-shell">
-        <aside class="coach-nav">
-          <div>
-            <p class="eyebrow">心理教練後台</p>
+        <header class="coach-header">
+          <div class="coach-brand">
+            <p class="eyebrow">運動心理教練後台</p>
             <h2>WenMind × TeamPro</h2>
             <p class="small-muted">展示模式：資料目前儲存在本瀏覽器 localStorage。</p>
           </div>
-          <nav>
-            ${[
-              ["/coach/assessments", "測驗管理"],
-              ["/coach/athletes", "填報結果"],
-              ["/coach/follow-ups", "教練回覆"]
-            ].map(([path, label]) => `<a class="${active === path ? "active" : ""}" href="#${path}">${label}</a>`).join("")}
-          </nav>
           <button class="ghost" id="logoutButton" type="button">登出</button>
-        </aside>
+        </header>
+        <nav class="coach-tabs" aria-label="教練導覽">
+          ${links.map(([path, label]) => `<a class="${active === path ? "active" : ""}" href="#${path}">${label}</a>`).join("")}
+        </nav>
         <div class="coach-content">${content}</div>
       </section>
     `);
@@ -534,22 +565,18 @@
 
   async function renderCoachDashboard() {
     coachShell("/coach/dashboard", `
-      <section class="panel-flow">
-        <p class="eyebrow">運動心理教練後台</p>
-        <h1>工作區</h1>
-        <div class="assessment-grid">
-          ${[
-            ["/coach/assessments", "測驗管理", "建立測驗連結與 QR Code。"],
-            ["/coach/athletes", "填報結果", "查看選手雷達圖與分數。"],
-            ["/coach/follow-ups", "教練回覆", "回覆內容與後續紀錄。"]
-          ].map(([path, title, desc]) => `
-            <button class="assessment-card" data-nav="${path}" type="button">
-              <strong>${title}</strong>
-              <span>${desc}</span>
-            </button>
-          `).join("")}
-        </div>
-      </section>
+      <div class="assessment-grid coach-workspace">
+        ${[
+          ["/coach/assessments", "測驗管理", "建立測驗連結與 QR Code。"],
+          ["/coach/athletes", "填報結果", "查看選手雷達圖與分數。"],
+          ["/coach/follow-ups", "教練回覆", "回覆內容與後續紀錄。"]
+        ].map(([path, title, desc]) => `
+          <button class="assessment-card" data-nav="${path}" type="button">
+            <strong>${title}</strong>
+            <span>${desc}</span>
+          </button>
+        `).join("")}
+      </div>
     `);
     bindNav();
   }
@@ -723,6 +750,8 @@
       `);
       return;
     }
+    state.currentAthleteName = athlete.name;
+    state.currentCoachRecord = record;
     coachShell("/coach/athletes", `
       <section class="athlete-detail">
         <div class="page-heading">
@@ -735,14 +764,16 @@
         <section class="report-section">
           <h2>雷達圖</h2>
           <div id="detailRadar"></div>
-        </div>
+          <div class="score-badges">
+            ${scoreBadges(record.dimensionScores)}
+          </div>
+        </section>
         <section class="report-section">
           <h2>分數</h2>
           ${scoreTable(record.dimensionScores)}
         </section>
         <section class="report-section">
-          <h2>教練回覆</h2>
-          ${followUps.length ? `<div class="follow-list">${followUps.map(followUpItem).join("")}</div>` : empty("尚無回覆。")}
+          <h2>回饋與分析</h2>
           ${followUpForm(record, athlete)}
         </section>
       </section>
@@ -782,6 +813,15 @@
     `;
   }
 
+  function scoreBadges(scores) {
+    return scores.map((item) => `
+      <div class="score-badge">
+        <strong>${escapeHtml(item.name)}</strong>
+        <span>${item.score}</span>
+      </div>
+    `).join("");
+  }
+
   function dimensionName(template, id) {
     return template.dimensions?.find((item) => item.id === id)?.name || id;
   }
@@ -789,9 +829,8 @@
   function followUpItem(item) {
     return `
       <article class="follow-item">
-        <strong>${escapeHtml(followStatusLabel(item.status))}｜${item.followUpDate || "未設定日期"}</strong>
+        <strong>回饋與分析｜${item.updatedAt ? formatDateTime(item.updatedAt) : "未設定時間"}</strong>
         <p>${escapeHtml(item.note || "未填寫紀錄")}</p>
-        <p class="small-muted">選手回應：${escapeHtml(item.athleteResponse || "未填寫")}｜後續處理：${escapeHtml(item.nextAction || "未填寫")}</p>
       </article>
     `;
   }
@@ -808,37 +847,22 @@
   function followUpForm(record, athlete) {
     return `
       <form class="follow-form" id="followUpForm">
-        <h3>新增關心紀錄</h3>
+        <h3>回饋與分析</h3>
         <input type="hidden" id="followAthleteId" value="${escapeHtml(athlete.id)}">
         <input type="hidden" id="followAssessmentId" value="${escapeHtml(record.id)}">
-        <label class="field">狀態
-          <select id="followStatus">
-            <option value="contacted">標記已關心</option>
-            <option value="observing">標記持續觀察</option>
-            <option value="improved">標記已有改善</option>
-            <option value="closed">結束本次追蹤</option>
-          </select>
+        <label class="field">內容
+          <textarea id="followNote" placeholder="記錄教練的回饋與分析"></textarea>
         </label>
-        <label class="field">關心紀錄
-          <textarea id="followNote" placeholder="記錄本次了解重點"></textarea>
-        </label>
-        <label class="field">選手回應
-          <textarea id="athleteResponse" placeholder="記錄選手回應"></textarea>
-        </label>
-        <label class="field">後續處理
-          <textarea id="nextAction" placeholder="記錄後續安排"></textarea>
-        </label>
-        <label class="field">下次追蹤日期
-          <input id="followDate" type="date">
-        </label>
-        <button class="primary" type="submit">儲存追蹤</button>
+        <div class="toolbar">
+          <button class="ghost" type="button" id="generateFollowReport">產出報告</button>
+          <button class="primary" type="submit">儲存</button>
+        </div>
       </form>
     `;
   }
 
   async function renderAssessmentManagement() {
     const sessions = await repos.groups.sessions();
-    const template = assessmentTemplates[0];
     coachShell("/coach/assessments", `
       <div class="page-heading">
         <div>
@@ -847,22 +871,37 @@
         </div>
       </div>
       <section class="report-section">
-        <h2>${escapeHtml(template.name)}</h2>
-        <p>${escapeHtml(template.disclaimer)}</p>
+        <h2>測驗連結</h2>
+        <p>把連結或 QR Code 給選手，選手開啟後可自行選擇要填寫的心理量表。</p>
         ${sessions.map((session) => {
           const link = `${location.origin}${location.pathname}#/assessment?group=${encodeURIComponent(session.groupId)}&assessment=${encodeURIComponent(session.id)}&token=${encodeURIComponent(session.token)}`;
+          const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=${encodeURIComponent(link)}`;
           return `
             <article class="session-card">
               <h3>${escapeHtml(session.name)}</h3>
               <p>測驗期間：${session.startDate || "未設定"} 至 ${session.endDate || "未設定"}</p>
               <input readonly value="${escapeHtml(link)}">
-              <div class="qr-box" aria-label="QR Code預留">QR</div>
-              <p class="small-muted">正式版本應由後端建立團隊、測驗活動、專屬連結與QR Code，並以 token 對應資料權限。</p>
+              <div class="toolbar">
+                <button class="ghost" type="button" data-copy="${escapeHtml(link)}">複製連結</button>
+              </div>
+              <img class="qr-code-img" src="${escapeHtml(qrSrc)}" alt="${escapeHtml(session.name)} 測驗連結 QR Code" width="176" height="176" loading="lazy">
+              <p class="small-muted">選手掃描 QR Code 或開啟連結即可填寫；每份量表會建立獨立歷史紀錄。</p>
             </article>
           `;
         }).join("")}
       </section>
     `);
+    document.querySelectorAll("[data-copy]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(button.dataset.copy);
+          button.textContent = "已複製";
+          setTimeout(() => { button.textContent = "複製連結"; }, 1500);
+        } catch {
+          button.textContent = "請手動複製";
+        }
+      });
+    });
   }
 
   async function renderFollowUps() {
@@ -870,15 +909,15 @@
     coachShell("/coach/follow-ups", `
       <div class="page-heading">
         <div>
-          <p class="eyebrow">教練回覆</p>
-          <h1>回覆內容</h1>
+          <p class="eyebrow">回饋與分析</p>
+          <h1>回饋內容</h1>
         </div>
       </div>
       <section class="report-section">
-        <h2>回覆列表</h2>
+        <h2>回饋列表</h2>
         ${followUps.length ? `<div class="follow-list">${followUps.map((item) => {
           const row = rows.find((candidate) => candidate.athlete.id === item.athleteId);
-          return `<article class="follow-item"><strong>${escapeHtml(row?.athlete.name || "未知選手")}</strong><p>${escapeHtml(item.note || "未填寫回覆")}</p><p class="small-muted">${escapeHtml(item.athleteResponse || "未填寫")}｜${escapeHtml(item.nextAction || "未填寫")}</p></article>`;
+          return `<article class="follow-item"><strong>${escapeHtml(row?.athlete.name || "未知選手")}</strong><p>${escapeHtml(item.note || "未填寫回饋")}</p></article>`;
         }).join("")}</div>` : empty("尚無回覆內容。")}
       </section>
     `);
@@ -909,16 +948,26 @@
 
   function bindFollowUpForm() {
     bindNav();
+    document.querySelector("#generateFollowReport")?.addEventListener("click", () => {
+      const textarea = document.querySelector("#followNote");
+      if (!textarea) return;
+      const scores = state.currentCoachRecord?.dimensionScores || [];
+      const summary = state.currentCoachRecord?.aiSummary || "目前資料不足，尚無法產生趨勢摘要。";
+      const question = state.currentCoachRecord?.suggestedQuestion || "建議先持續觀察。";
+      textarea.value = [
+        `選手：${state.currentAthleteName || "未命名"}`,
+        `狀態：${state.currentCoachRecord ? statusLabel(state.currentCoachRecord.overallStatus) : "資料不足"}`,
+        `摘要：${summary}`,
+        `建議詢問：${question}`,
+        `分數：${scores.map((item) => `${item.name}${item.score}`).join("、") || "無"}`
+      ].join("\n");
+    });
     document.querySelector("#followUpForm")?.addEventListener("submit", async (event) => {
       event.preventDefault();
       await repos.followUps.save({
         athleteId: document.querySelector("#followAthleteId").value,
         assessmentId: document.querySelector("#followAssessmentId").value,
-        status: document.querySelector("#followStatus").value,
-        note: document.querySelector("#followNote").value,
-        athleteResponse: document.querySelector("#athleteResponse").value,
-        nextAction: document.querySelector("#nextAction").value,
-        followUpDate: document.querySelector("#followDate").value
+        note: document.querySelector("#followNote").value
       });
       await renderRoute();
     });
@@ -962,6 +1011,7 @@
     });
     if (previous) scorePolygon(ctx, axes, previous, cx, cy, radius, "rgba(169,191,212,.42)", "rgba(169,191,212,.10)", [8, 7]);
     scorePolygon(ctx, axes, current, cx, cy, radius, "#19d8ff", "rgba(25,216,255,.25)");
+    drawScoreLabels(ctx, axes, current, cx, cy, radius);
   }
 
   function polygon(ctx, sides, cx, cy, radius, fill, stroke) {
@@ -1003,6 +1053,48 @@
     ctx.lineWidth = 4;
     ctx.stroke();
     ctx.restore();
+  }
+
+  function drawScoreLabels(ctx, axes, scores, cx, cy, radius) {
+    if (!axes.length) return;
+    ctx.save();
+    ctx.font = "700 18px Microsoft JhengHei, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    axes.forEach((axis, index) => {
+      const value = scores.find((item) => item.id === axis.id)?.score;
+      if (value == null) return;
+      const angle = -Math.PI / 2 + index * Math.PI * 2 / axes.length;
+      const pointRadius = radius * value / 100;
+      const pointX = cx + Math.cos(angle) * pointRadius;
+      const pointY = cy + Math.sin(angle) * pointRadius;
+      const labelDistance = 18;
+      const x = pointX + Math.cos(angle) * labelDistance;
+      const y = pointY + Math.sin(angle) * labelDistance;
+      const text = String(value);
+      const width = Math.max(30, ctx.measureText(text).width + 16);
+      const height = 28;
+      roundRect(ctx, x - width / 2, y - height / 2, width, height, 10);
+      ctx.fillStyle = "rgba(6,18,32,.92)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(25,216,255,.4)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = "#9cf1ff";
+      ctx.fillText(text, x, y + 1);
+    });
+    ctx.restore();
+  }
+
+  function roundRect(ctx, x, y, width, height, radius) {
+    const r = Math.min(radius, width / 2, height / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + width, y, x + width, y + height, r);
+    ctx.arcTo(x + width, y + height, x, y + height, r);
+    ctx.arcTo(x, y + height, x, y, r);
+    ctx.arcTo(x, y, x + width, y, r);
+    ctx.closePath();
   }
 
   function wrapLabel(ctx, text, x, y, maxWidth) {

@@ -5,6 +5,27 @@
   const STORE_KEY = "wenmind:radar:v2";
   const SESSION_KEY = "wenmind:coach-session";
   const ATHLETE_SESSION_KEY = "wenmind:athlete-session";
+  const REMOTE_ENDPOINT_KEY = "wenmind:api-endpoint";
+
+  // 部署 GAS 後把 Web App /exec 網址貼在這裡即可全裝置同步；
+  // 或用 網址?api=你的/exec 造訪一次，會自動記住（存在 localStorage）。
+  const REMOTE_ENDPOINT_DEFAULT = "https://script.google.com/macros/s/AKfycbxRSa_dxXJNJrRAD64pSnopA2Mw4ymSXEOVIQxZO2yhFK1KAz9d5hQhguJa6BWd1A7z9g/exec";
+
+  function resolveEndpoint() {
+    // 測試／離線情境可設 global.WENMIND_FORCE_LOCAL = true 強制純本機，不打後台。
+    if (global.WENMIND_FORCE_LOCAL) return "";
+    try {
+      const params = new URLSearchParams(global.location?.search || "");
+      const fromQuery = params.get("api");
+      if (fromQuery) {
+        global.localStorage?.setItem(REMOTE_ENDPOINT_KEY, fromQuery);
+        return fromQuery;
+      }
+      return global.localStorage?.getItem(REMOTE_ENDPOINT_KEY) || REMOTE_ENDPOINT_DEFAULT;
+    } catch {
+      return REMOTE_ENDPOINT_DEFAULT;
+    }
+  }
 
   const APP_MODE = (() => {
     try {
@@ -505,6 +526,91 @@
     }
   }
 
+  async function postRemote(endpoint, payload) {
+    // 用 text/plain 做「簡單請求」避開 GAS 不支援的 CORS preflight。
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(`同步失敗 (HTTP ${res.status})`);
+    const data = await res.json();
+    if (data && data.ok === false) throw new Error(data.error || "同步失敗");
+    return data;
+  }
+
+  // 雲端資料層：以 localStorage 當離線快取，每次寫入非同步 push 到 GAS，
+  // 讀取時 pull 回最新（GAS 端以 id 合併，additive 不覆蓋別台裝置資料）。
+  class RemoteStore {
+    constructor({ endpoint, cacheKey = STORE_KEY }) {
+      this.endpoint = endpoint;
+      this.cacheKey = cacheKey;
+      this.cache = readJson(cacheKey, null) || createEmptyStore();
+      this._pending = Promise.resolve();
+      this.online = false;
+      this.lastError = "";
+    }
+    read() {
+      return this.cache;
+    }
+    write(store) {
+      this.cache = store;
+      writeJson(this.cacheKey, store);
+      this._queuePush(store);
+      return store;
+    }
+    _queuePush(store) {
+      if (!this.endpoint) return this._pending;
+      const snapshot = JSON.parse(JSON.stringify(store));
+      this._pending = this._pending
+        .catch(() => {})
+        .then(() => postRemote(this.endpoint, { action: "push", store: snapshot }))
+        .then((data) => {
+          if (data && data.store) {
+            this.cache = data.store;
+            writeJson(this.cacheKey, this.cache);
+          }
+          this.online = true;
+          this.lastError = "";
+        })
+        .catch((err) => {
+          this.online = false;
+          this.lastError = err.message || String(err);
+        });
+      return this._pending;
+    }
+    async flush() {
+      try {
+        await this._pending;
+      } catch {
+        /* 已在 _queuePush 內記錄 lastError */
+      }
+      return this.cache;
+    }
+    async pull() {
+      if (!this.endpoint) return this.cache;
+      await this.flush();
+      // 若上次 push 失敗（曾離線），先補送本機快取再拉最新。
+      if (this.lastError) {
+        this._queuePush(this.cache);
+        await this.flush();
+      }
+      try {
+        const data = await postRemote(this.endpoint, { action: "pull" });
+        if (data && data.store) {
+          this.cache = data.store;
+          writeJson(this.cacheKey, this.cache);
+        }
+        this.online = true;
+        this.lastError = "";
+      } catch (err) {
+        this.online = false;
+        this.lastError = err.message || String(err);
+      }
+      return this.cache;
+    }
+  }
+
   class DemoAuthRepository {
     constructor(store) {
       this.store = store;
@@ -833,20 +939,22 @@
 
   function createRepositories() {
     const useDemo = APP_MODE === "demo";
-    const store = new LocalStore({ seedDemo: useDemo });
+    // demo 模式一律本機示範資料；正式模式若設定了 GAS /exec 端點則走雲端同步，
+    // 否則退回純本機（localStorage）。所有 repository 共用同一個 store。
+    const endpoint = useDemo ? "" : resolveEndpoint();
+    const store = endpoint
+      ? new RemoteStore({ endpoint, cacheKey: STORE_KEY })
+      : new LocalStore({ seedDemo: useDemo });
     return {
       mode: APP_MODE,
+      endpoint,
+      synced: !!endpoint,
       store,
-      auth: useDemo ? new DemoAuthRepository(store) : new DemoAuthRepository(store),
-      remoteAuth: new RemoteAuthRepository(),
-      athletes: useDemo ? new DemoAthleteRepository(store) : new DemoAthleteRepository(store),
-      remoteAthletes: new RemoteAthleteRepository(store),
-      assessments: useDemo ? new DemoAssessmentRepository(store) : new DemoAssessmentRepository(store),
-      remoteAssessments: new RemoteAssessmentRepository(store),
-      followUps: useDemo ? new DemoFollowUpRepository(store) : new DemoFollowUpRepository(store),
-      remoteFollowUps: new RemoteFollowUpRepository(store),
-      groups: useDemo ? new DemoGroupRepository(store) : new DemoGroupRepository(store),
-      remoteGroups: new RemoteGroupRepository(store)
+      auth: new DemoAuthRepository(store),
+      athletes: new DemoAthleteRepository(store),
+      assessments: new DemoAssessmentRepository(store),
+      followUps: new DemoFollowUpRepository(store),
+      groups: new DemoGroupRepository(store)
     };
   }
 
@@ -856,6 +964,8 @@
     STORE_KEY,
     SESSION_KEY,
     ATHLETE_SESSION_KEY,
+    REMOTE_ENDPOINT_KEY,
+    resolveEndpoint,
     riskThresholds,
     defaultDimensionCatalog,
     assessmentTemplates,

@@ -18,7 +18,18 @@ GitHub Pages 使用 hash router，重新整理不需要 404 fallback。
 
 預設為 `production`，不會自動植入展示資料。可用 `?mode=demo` 或 `localStorage` 的 `wenmind:app-mode=demo` 啟用展示資料。
 
-目前尚未串接真正雲端資料庫。展示與本機流程使用 localStorage，僅在同一瀏覽器有效。正式上線需串接 Supabase Auth、Firebase Auth 或其他後端資料庫與權限控管。
+正式模式支援 GAS + Google Sheets 後台同步：填入端點後，選手手機填報與教練後台即可跨裝置共用同一份資料；未填端點時自動退回純本機 localStorage（僅同瀏覽器有效）。demo 模式一律使用本機示範資料。
+
+## 後台同步（GAS + Sheets）
+
+1. 到 script.google.com 新增專案，貼上 `apps-script/Code.gs`。
+2. 部署 > 新增部署作業 > 類型「網頁應用程式」；執行身分：我；存取權：所有人。
+3. 複製 `/exec` 網址，二選一：
+   - 填進 `core.js` 的 `REMOTE_ENDPOINT_DEFAULT`（所有人預設走雲端），或
+   - 用「你的網址?api=貼上/exec」造訪一次，前端會記在 localStorage。
+4. 之後每次改 `Code.gs` 都要「管理部署作業 > 編輯 > 版本：新版本」才生效。
+
+同步機制：前端 `RemoteStore` 以 localStorage 當離線快取，每次寫入非同步 `push`、切換畫面 `pull`；GAS 端以 `id` 合併（additive、時間新者勝），避免多裝置互相覆蓋。教練登入 session 仍為各裝置本機。
 
 ## 指令
 

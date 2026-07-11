@@ -5,7 +5,7 @@
 ## 入口
 
 - 選手入口：`#/`、`#/assessment`
-- 心理教練登入：`#/coach/login`
+- 運動心理教練登入：`#/coach/login`
 - 心理教練後台：`#/coach/dashboard`
 - 所有選手：`#/coach/athletes`
 - 個人狀態：`#/coach/athletes/{athleteId}`

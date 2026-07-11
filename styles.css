@@ -274,6 +274,31 @@ textarea {
   background: linear-gradient(90deg, var(--cyan), var(--mint));
 }
 
+.scale-legend {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.scale-legend span {
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,.025);
+  color: var(--muted);
+  padding: 8px 10px;
+  display: grid;
+  gap: 2px;
+  align-content: center;
+  text-align: center;
+  line-height: 1.25;
+}
+
+.scale-legend strong {
+  color: var(--text);
+  font-size: 18px;
+}
+
 .question-card, .report-section, .callout, .status-card, .stat-card, .mobile-athlete-card, .follow-item, .session-card {
   background: linear-gradient(180deg, rgba(16,31,51,.9), rgba(8,17,31,.94));
   border: 1px solid var(--line);
@@ -658,6 +683,10 @@ textarea {
     min-height: calc(100vh - 280px);
   }
 
+  .scale-legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .bottom-actions {
     position: sticky;
     bottom: max(10px, env(safe-area-inset-bottom));
@@ -712,6 +741,10 @@ textarea {
   }
 
   .bottom-actions, .search-row {
+    grid-template-columns: 1fr;
+  }
+
+  .scale-legend {
     grid-template-columns: 1fr;
   }
 

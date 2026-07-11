@@ -341,6 +341,11 @@
           <div class="progress-bar"><div class="progress-fill" style="width:${percent}%"></div></div>
           <div class="progress-meta"><span>自動暫存</span><span>已完成 ${answered}/${template.questions.length}</span></div>
         </div>
+        <div class="scale-legend" aria-label="量尺說明">
+          ${template.optionLabels.map((label, index) => `
+            <span><strong>${index + 1}</strong>${escapeHtml(label)}</span>
+          `).join("")}
+        </div>
         <article class="question-card">
           <p class="question-text">${escapeHtml(question.text)}</p>
           <div class="answers">

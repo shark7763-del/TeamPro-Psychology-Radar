@@ -358,7 +358,7 @@
         <p class="form-error" id="answerError" aria-live="polite"></p>
         <div class="bottom-actions">
           <button class="ghost" id="prevQuestion" type="button" ${state.questionIndex === 0 ? "disabled" : ""}>上一題</button>
-          <button class="primary" id="nextQuestion" type="button">${state.questionIndex === template.questions.length - 1 ? "送出前檢查" : "下一題"}</button>
+          <button class="primary" id="nextQuestion" type="button">${state.questionIndex === template.questions.length - 1 ? "送出" : "下一題"}</button>
         </div>
       </section>
     `, { narrow: true });
@@ -380,7 +380,7 @@
         document.querySelector("#answerError").textContent = "請先選擇本題答案。";
         return;
       }
-      if (state.questionIndex === template.questions.length - 1) await renderSubmitConfirm();
+      if (state.questionIndex === template.questions.length - 1) await submitCurrentAssessment();
       else {
         state.questionIndex += 1;
         await renderQuestion();
@@ -388,64 +388,49 @@
     });
   }
 
-  async function renderSubmitConfirm() {
+  async function submitCurrentAssessment() {
     const template = getTemplate(state.templateId);
     const draft = await currentDraft();
     const validation = validateAnswers(template, draft.answers || {});
+    if (!validation.complete) {
+      state.questionIndex = template.questions.findIndex((question) => question.id === validation.missing[0].id);
+      renderQuestion();
+      return;
+    }
+    state.submitStatus = "submitting";
+    state.submitError = "";
     shell(`
       <section class="panel-flow">
-        <p class="eyebrow">送出前檢查</p>
-        <h1>${validation.complete ? "你已完成全部題目" : `你還有${validation.missing.length}題尚未完成。`}</h1>
-        <p>${validation.complete ? "請確認送出，本次心理狀態會建立一筆新的歷史紀錄。" : "點擊未完成題目可直接回到該題。"}</p>
-        ${validation.missing.length ? `
-          <div class="missing-grid">
-            ${validation.missing.map((question) => {
-              const index = template.questions.findIndex((item) => item.id === question.id);
-              return `<button class="ghost" data-missing="${index}" type="button">第${index + 1}題</button>`;
-            }).join("")}
-          </div>
-        ` : ""}
-        <p class="form-error" id="submitError" aria-live="polite">${escapeHtml(state.submitError)}</p>
-        <div class="toolbar">
-          <button class="ghost" id="returnCheck" type="button">返回檢查</button>
-          <button class="primary" id="confirmSubmit" type="button" ${validation.complete && state.submitStatus !== "submitting" ? "" : "disabled"}>
-            ${state.submitStatus === "submitting" ? "送出中" : "確認送出"}
-          </button>
-        </div>
+        <p class="eyebrow">${escapeHtml(template.name)}</p>
+        <h1>送出中</h1>
+        <p>正在儲存你的測驗結果。</p>
       </section>
     `, { narrow: true });
-    document.querySelectorAll("[data-missing]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.questionIndex = Number(button.dataset.missing);
-        renderQuestion();
+    try {
+      const record = await repos.assessments.submit({
+        athleteId: state.athlete.id,
+        groupId: state.athlete.groupId,
+        sessionId: state.activeSession.id,
+        templateId: template.id,
+        answers: draft.answers,
+        startedAt: draft.startedAt
       });
-    });
-    document.querySelector("#returnCheck").addEventListener("click", () => {
-      state.questionIndex = validation.complete ? 0 : template.questions.findIndex((question) => question.id === validation.missing[0].id);
-      renderQuestion();
-    });
-    document.querySelector("#confirmSubmit").addEventListener("click", async () => {
-      state.submitStatus = "submitting";
+      state.submitStatus = "success";
       state.submitError = "";
-      await renderSubmitConfirm();
-      try {
-        const record = await repos.assessments.submit({
-          athleteId: state.athlete.id,
-          groupId: state.athlete.groupId,
-          sessionId: state.activeSession.id,
-          templateId: template.id,
-          answers: draft.answers,
-          startedAt: draft.startedAt
-        });
-        state.submitStatus = "success";
-        state.submitError = "";
-        renderAthleteResult(record.id);
-      } catch (error) {
-        state.submitStatus = "error";
-        state.submitError = error.message || "送出失敗，請稍後重新送出。";
-        await renderSubmitConfirm();
-      }
-    });
+      renderAthleteResult(record.id);
+    } catch (error) {
+      state.submitStatus = "error";
+      state.submitError = error.message || "送出失敗，請稍後重新送出。";
+      shell(`
+        <section class="panel-flow">
+          <p class="eyebrow">${escapeHtml(template.name)}</p>
+          <h1>送出失敗</h1>
+          <p class="form-error">${escapeHtml(state.submitError)}</p>
+          <button class="primary" type="button" id="retrySubmit">重新送出</button>
+        </section>
+      `, { narrow: true });
+      document.querySelector("#retrySubmit").addEventListener("click", submitCurrentAssessment);
+    }
   }
 
   async function renderAthleteResult(recordId) {
@@ -458,8 +443,8 @@
     shell(`
       <section class="result-flow">
         <div class="callout">
-          <p class="eyebrow">本次心理狀態已完成送出</p>
-          <h1>${escapeHtml(statusLabel(record.overallStatus))}</h1>
+          <p class="eyebrow">本次心理狀態已完成送出｜${escapeHtml(statusLabel(record.overallStatus))}</p>
+          <h1>恭喜你完成測驗</h1>
           <p>這份結果提供自我了解與後續溝通參考，不代表醫療或心理疾病診斷。</p>
         </div>
         <div class="grid-2">

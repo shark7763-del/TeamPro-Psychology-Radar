@@ -1,6 +1,11 @@
 (function (global) {
   "use strict";
 
+  // 題庫 2.0（瀏覽器先載入 questionBank.js；Node 測試用 require）
+  const QB = (typeof global.TeamProQuestionBank !== "undefined")
+    ? global.TeamProQuestionBank
+    : (typeof require !== "undefined" ? require("./questionBank.js") : null);
+
   const APP_MODE_KEY = "wenmind:app-mode";
   const STORE_KEY = "wenmind:radar:v2";
   const SESSION_KEY = "wenmind:coach-session";
@@ -83,7 +88,34 @@
     { id: "stateConfidence", name: "狀態自信", group: "競賽狀態", positive: true, train: "確認選手面對比賽挑戰時的信心與可控感。" }
   ];
 
+  // TeamPro 運動心理技能自評 2.0（正式主測驗；12 構面×4 題＝48 題、7 點量尺、全正向）
+  function teamproTemplate(ageGroup) {
+    const isChild = ageGroup === "child";
+    return {
+      id: isChild ? "teampro-mental-skills-v2-child" : "teampro-mental-skills-v2",
+      version: "2.0",
+      scoringVersion: "2.0",
+      questionBankVersion: "2.0",
+      ageGroup: isChild ? "child" : "standard",
+      name: "TeamPro 運動心理技能自評" + (isChild ? "（兒童版）" : ""),
+      subtitle: "參考運動心理技能架構設計，用於選手自我覺察、教練訪談及心理技能訓練，不屬於臨床診斷工具。",
+      description: isChild
+        ? "兒童版：用更簡單的句子，了解 12 項運動心理技能目前的自我感受。"
+        : "了解 12 項運動心理技能目前的自我感受，作為自我覺察與教練訪談的參考。",
+      disclaimer: "本結果為選手當下的自我評估，不代表人格定型、心理疾病或比賽結果預測。",
+      resultNote: isChild
+        ? "兒童版結果主要用於親子及教練對話，不建議單獨依分數替孩子下結論。"
+        : "本結果為選手當下的自我評估，不代表人格定型、心理疾病或比賽結果預測。",
+      points: 7,
+      optionLabels: ["非常不符合", "大多不符合", "有些不符合", "普通／不確定", "有些符合", "大多符合", "非常符合"],
+      dimensions: QB ? QB.DIMENSIONS : [],
+      questions: QB ? QB.buildQuestions(isChild ? "child" : "standard") : []
+    };
+  }
+
   const assessmentTemplates = [
+    teamproTemplate("standard"),
+    teamproTemplate("child"),
     {
       id: "ottawa-mental-skills-v1",
       version: "2026.07.demo",
@@ -92,6 +124,7 @@
       description: "檢測12種重要運動心理技能的自我評估狀態。",
       disclaimer: "目前為展示題庫，正式使用前需確認量表授權、正式題目與計分規則。",
       points: 5,
+      scoreMode: "sum",
       optionLabels: ["從來不曾", "很少", "偶而", "經常", "幾乎總是"],
       dimensions: ottawaDimensions,
       questions: makeQuestions("om", [
@@ -266,23 +299,72 @@
     };
   }
 
+  function isDemoSeedEntry(item) {
+    const name = String(item?.name || "").trim();
+    const id = String(item?.id || "");
+    return id.startsWith("demo-") || name === "王小明";
+  }
+
+  function normalizeRecordedScores(record) {
+    if (!record || !record.assessmentTemplateId) return record;
+    const template = getTemplate(record.assessmentTemplateId);
+    if (!template || template.scoreMode !== "sum") return record;
+    if (!Array.isArray(record.dimensionScores)) return refreshRecordNames(record);
+
+    const scoreById = new Map(record.dimensionScores.filter(Boolean).map((item) => [item.id, item]));
+    const convertScore = (item) => {
+      if (!item) return item;
+      const source = scoreById.get(item.id) || item;
+      const rawMax = Number(source.max || item.max || 0);
+      if (!(rawMax > 0) || rawMax >= 100 || source.rawScore != null) return item;
+      const normalized = Math.round((Number(source.score || 0) / rawMax) * 100);
+      return { ...item, score: normalized, max: 100, rawScore: source.score, rawMax };
+    };
+    const convertChange = (arr) => Array.isArray(arr)
+      ? arr.map((item) => {
+        const source = scoreById.get(item?.id);
+        const rawMax = Number(source?.max || item?.max || 0);
+        if (!(rawMax > 0) || rawMax >= 100 || source?.rawScore != null) return item;
+        const ratio = 100 / rawMax;
+        const scale = (value) => Number.isFinite(value) ? Math.round(value * ratio) : value;
+        return {
+          ...item,
+          current: scale(item.current),
+          previous: scale(item.previous),
+          baseline: scale(item.baseline)
+        };
+      })
+      : arr;
+
+    return refreshRecordNames({
+      ...record,
+      dimensionScores: record.dimensionScores.map(convertScore),
+      changeFromPrevious: convertChange(record.changeFromPrevious),
+      changeFromBaseline: convertChange(record.changeFromBaseline)
+    });
+  }
+
+  function sanitizeStore(store) {
+    if (!store || typeof store !== "object") return createEmptyStore();
+    const next = {
+      ...createEmptyStore(),
+      ...store,
+      groups: Array.isArray(store.groups) ? store.groups.filter((item) => !String(item?.id || "").startsWith("demo-")) : [],
+      assessmentSessions: Array.isArray(store.assessmentSessions) ? store.assessmentSessions.filter((item) => !String(item?.id || "").startsWith("demo-")) : [],
+      athletes: Array.isArray(store.athletes) ? store.athletes.filter((item) => !isDemoSeedEntry(item)) : [],
+      assessmentRecords: Array.isArray(store.assessmentRecords) ? store.assessmentRecords.filter((item) => !String(item?.id || "").startsWith("demo-") && !String(item?.athleteId || "").startsWith("demo-")) : [],
+      drafts: store.drafts && typeof store.drafts === "object" ? store.drafts : {},
+      followUps: Array.isArray(store.followUps) ? store.followUps.filter((item) => !String(item?.id || "").startsWith("demo-") && !String(item?.athleteId || "").startsWith("demo-")) : [],
+      auditLogs: Array.isArray(store.auditLogs) ? store.auditLogs.filter((item) => !String(item?.id || "").startsWith("demo-")) : []
+    };
+    next.assessmentRecords = next.assessmentRecords.map((record) => normalizeRecordedScores(record));
+    return next;
+  }
+
   function demoSeed() {
     const now = new Date();
     const groupId = "demo-group";
     const sessionId = "demo-session";
-    const athletes = [
-      { id: "demo-a1", name: "陳安", sport: "籃球", groupId, createdAt: new Date(now - 30 * 86400000).toISOString() },
-      { id: "demo-a2", name: "林晴", sport: "游泳", groupId, createdAt: new Date(now - 22 * 86400000).toISOString() },
-      { id: "demo-a3", name: "張宇", sport: "田徑", groupId, createdAt: new Date(now - 18 * 86400000).toISOString() },
-      { id: "demo-a4", name: "黃寧", sport: "羽球", groupId, createdAt: new Date(now - 12 * 86400000).toISOString() }
-    ];
-    const records = [
-      makeDemoRecord("demo-a1", groupId, sessionId, 16, { confidence: 76, focus: 72, motivation: 70, pressure: 74, recovery: 68 }),
-      makeDemoRecord("demo-a1", groupId, sessionId, 4, { confidence: 58, focus: 63, motivation: 66, pressure: 52, recovery: 44 }),
-      makeDemoRecord("demo-a2", groupId, sessionId, 9, { confidence: 70, focus: 72, motivation: 75, pressure: 64, recovery: 68 }),
-      makeDemoRecord("demo-a2", groupId, sessionId, 2, { confidence: 72, focus: 74, motivation: 77, pressure: 66, recovery: 70 }),
-      makeDemoRecord("demo-a3", groupId, sessionId, 5, { confidence: 46, focus: 50, motivation: 48, pressure: 42, recovery: 38 })
-    ];
     return {
       ...createEmptyStore(),
       groups: [{ id: groupId, name: "展示團隊", createdAt: new Date(now - 35 * 86400000).toISOString() }],
@@ -296,53 +378,14 @@
         token: "demo-token",
         createdAt: new Date(now - 7 * 86400000).toISOString()
       }],
-      athletes,
-      assessmentRecords: records,
-      followUps: [{
-        id: "demo-fu-1",
-        athleteId: "demo-a1",
-        assessmentId: records[1].id,
-        coachId: "demo-coach",
-        status: "observing",
-        note: "已先了解近期比賽壓力，安排下次討論賽前重置流程。",
-        athleteResponse: "最近關鍵球失誤後比較沒有把握。",
-        nextAction: "下次練習後追蹤自信與壓力調節。",
-        followUpDate: todayISO(),
-        createdAt: new Date(now - 2 * 86400000).toISOString(),
-        updatedAt: new Date(now - 2 * 86400000).toISOString()
-      }],
+      athletes: [],
+      assessmentRecords: [],
+      followUps: [],
       auditLogs: []
     };
   }
 
-  function makeDemoRecord(athleteId, groupId, sessionId, daysAgo, scoreMap) {
-    const template = getTemplate();
-    const completedAt = new Date(Date.now() - daysAgo * 86400000).toISOString();
-    const dimensionScores = getDimensionCatalog(template).map((dimension, index) => ({ ...dimension, score: scoreMap[dimension.id] ?? [76, 72, 70, 68, 66, 64, 62, 74, 71, 60, 58, 69][index] ?? 65 }));
-    return {
-      id: uid("demo_record"),
-      athleteId,
-      groupId,
-      assessmentSessionId: sessionId,
-      assessmentTemplateId: template.id,
-      assessmentVersion: "2026.07.demo",
-      scoringVersion: "demo-v2",
-      startedAt: completedAt,
-      completedAt,
-      answers: {},
-      dimensionScores,
-      overallStatus: "gray",
-      alertReasons: [],
-      changeFromPrevious: null,
-      changeFromBaseline: null,
-      aiSummary: "",
-      viewed: false,
-      cared: false,
-      createdAt: completedAt
-    };
-  }
-
-  function getTemplate(templateId = "ottawa-mental-skills-v1") {
+  function getTemplate(templateId = "teampro-mental-skills-v2") {
     return assessmentTemplates.find((template) => template.id === templateId) || assessmentTemplates[0];
   }
 
@@ -360,15 +403,26 @@
     if (!validation.complete) {
       throw new Error("Incomplete answers cannot be scored.");
     }
+    const sumMode = template.scoreMode === "sum";
     return getDimensionCatalog(template).map((dimension) => {
       const questions = template.questions.filter((question) => question.dimension === dimension.id);
       const values = questions.map((question) => {
         const raw = answers[question.id];
         return question.reverse ? template.points + 1 - raw : raw;
       });
+      if (sumMode) {
+        // 原始總分模式改為百分比，讓三個量表的顯示區間一致。
+        const sum = values.reduce((total, value) => total + value, 0);
+        const rawMax = questions.length * template.points;
+        const score = rawMax ? Math.round((sum / rawMax) * 100) : 0;
+        return { ...dimension, score, max: 100, rawScore: sum, rawMax };
+      }
       const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
-      const normalized = Math.round(((avg - 1) / (template.points - 1)) * 100);
-      return { ...dimension, score: dimension.positive === false ? 100 - normalized : normalized };
+      const average = Math.round(avg * 100) / 100; // 原始平均，保留兩位小數（例：4.75／7）
+      // 0～100 線性換算，不是百分位排名；夾在 0~100 之間
+      const normalized = Math.max(0, Math.min(100, Math.round(((avg - 1) / (template.points - 1)) * 100)));
+      const score = dimension.positive === false ? 100 - normalized : normalized;
+      return { ...dimension, score, average, pointScale: template.points, max: 100 };
     });
   }
 
@@ -389,7 +443,9 @@
     if (!previous) return null;
     return current.map((item) => {
       const prev = previous.dimensionScores.find((score) => score.id === item.id);
-      const delta = prev ? item.score - prev.score : null;
+      const max = item.max || 100;
+      // delta 以「滿分百分比」表示，讓門檻在 0-100 或原始總分量表都一致
+      const delta = prev ? Math.round(((item.score - prev.score) / max) * 100) : null;
       return { id: item.id, name: item.name, current: item.score, previous: prev?.score ?? null, delta };
     });
   }
@@ -402,7 +458,8 @@
         .map((record) => record.dimensionScores.find((score) => score.id === item.id)?.score)
         .filter((score) => Number.isFinite(score));
       const baseline = Math.round(related.reduce((sum, score) => sum + score, 0) / related.length);
-      return { id: item.id, name: item.name, current: item.score, baseline, delta: item.score - baseline };
+      const max = item.max || 100;
+      return { id: item.id, name: item.name, current: item.score, baseline, delta: Math.round(((item.score - baseline) / max) * 100) };
     });
   }
 
@@ -425,7 +482,7 @@
     const previous = compareScores(scores, previousRecord);
     const baseline = baselineCompare(scores, athleteHistory);
     const reasons = [];
-    const low = scores.filter((score) => score.score <= riskThresholds.dimensionLow);
+    const low = scores.filter((score) => (score.score / (score.max || 100)) * 100 <= riskThresholds.dimensionLow);
     low.forEach((score) => reasons.push(`${score.name}低於目前提醒門檻`));
     if (previous) {
       previous
@@ -496,6 +553,22 @@
     return { red: 1, orange: 2, gray: 4, green: 5 }[status] || 4;
   }
 
+  // TeamPro 2.0 分數解讀區間（能力導向、不使用「很差／異常／不及格」等字眼）
+  function interpretationBand(score) {
+    if (score >= 75) return { key: "strong", level: "個人相對優勢", note: "此能力在本次自評中相對成熟且穩定，可作為個人優勢持續發揮。" };
+    if (score >= 60) return { key: "stable", level: "相對穩定", note: "此能力目前相對穩定，可維持並依比賽需求進一步精進。" };
+    if (score >= 40) return { key: "developing", level: "發展中", note: "此能力正在發展中，透過針對性的練習可望逐步提升。" };
+    return { key: "priority", level: "優先了解與訓練", note: "此能力目前可優先了解與培養，建議搭配實際訓練或比賽情境進一步確認。" };
+  }
+
+  // 相對優勢：score>=75 且個人前3名；優先訓練：score<60 且個人後3名（不硬貼標籤）
+  function strengthsAndPriorities(scores) {
+    const list = Array.isArray(scores) ? scores.filter((item) => Number.isFinite(item.score)) : [];
+    const strengths = [...list].sort((a, b) => b.score - a.score).filter((item) => item.score >= 75).slice(0, 3);
+    const priorities = [...list].sort((a, b) => a.score - b.score).filter((item) => item.score < 60).slice(0, 3);
+    return { strengths, priorities };
+  }
+
   class LocalStore {
     constructor({ seedDemo = false } = {}) {
       this.seedDemo = seedDemo;
@@ -503,13 +576,20 @@
     }
     ensure() {
       const current = readJson(STORE_KEY, null);
-      if (!current) writeJson(STORE_KEY, this.seedDemo ? demoSeed() : createEmptyStore());
+      if (!current) {
+        writeJson(STORE_KEY, this.seedDemo ? demoSeed() : createEmptyStore());
+        return;
+      }
+      const sanitized = sanitizeStore(current);
+      if (JSON.stringify(sanitized) !== JSON.stringify(current)) writeJson(STORE_KEY, sanitized);
     }
     read() {
-      return readJson(STORE_KEY, createEmptyStore());
+      const store = sanitizeStore(readJson(STORE_KEY, createEmptyStore()));
+      if (store) writeJson(STORE_KEY, store);
+      return store;
     }
     write(store) {
-      writeJson(STORE_KEY, store);
+      writeJson(STORE_KEY, sanitizeStore(store));
     }
   }
 
@@ -540,19 +620,20 @@
     constructor({ endpoint, cacheKey = STORE_KEY }) {
       this.endpoint = endpoint;
       this.cacheKey = cacheKey;
-      this.cache = readJson(cacheKey, null) || createEmptyStore();
+      this.cache = sanitizeStore(readJson(cacheKey, null) || createEmptyStore());
       this._pending = Promise.resolve();
       this.online = false;
       this.lastError = "";
     }
     read() {
+      this.cache = sanitizeStore(this.cache);
       return this.cache;
     }
     write(store) {
-      this.cache = store;
-      writeJson(this.cacheKey, store);
-      this._queuePush(store);
-      return store;
+      this.cache = sanitizeStore(store);
+      writeJson(this.cacheKey, this.cache);
+      this._queuePush(this.cache);
+      return this.cache;
     }
     _queuePush(store) {
       if (!this.endpoint) return this._pending;
@@ -766,10 +847,15 @@
         assessmentTemplateId: template.id,
         assessmentVersion: template.version,
         scoringVersion: template.scoringVersion,
+        questionBankVersion: template.questionBankVersion || template.scoringVersion,
+        ageGroup: template.ageGroup || "standard",
         startedAt: startedAt || completedAt,
         completedAt,
         answers: { ...answers },
         dimensionScores,
+        dimensionAverages: Object.fromEntries(dimensionScores.map((item) => [item.id, item.average ?? null])),
+        completed: true,
+        isDemo: false,
         overallStatus: "gray",
         alertReasons: [],
         changeFromPrevious: null,
@@ -875,7 +961,7 @@
       id: "local-session",
       groupId,
       templateId: getTemplate().id,
-      name: "特質運動心理堅韌性量表",
+      name: getTemplate().name,
       startDate: todayISO(),
       endDate: "",
       token: "local-link",
@@ -890,8 +976,11 @@
     if (!template || !Array.isArray(template.dimensions)) return record;
     const nameById = {};
     template.dimensions.forEach((dimension) => { nameById[dimension.id] = dimension.name; });
+    const allowedIds = new Set(template.dimensions.map((dimension) => dimension.id));
     const fix = (arr) => Array.isArray(arr)
-      ? arr.map((item) => (item && nameById[item.id]) ? { ...item, name: nameById[item.id] } : item)
+      ? arr
+        .filter((item) => item && allowedIds.has(item.id))
+        .map((item) => (item && nameById[item.id]) ? { ...item, name: nameById[item.id] } : item)
       : arr;
     return {
       ...record,
@@ -991,6 +1080,11 @@
     evaluateRecord,
     statusLabel,
     statusRank,
+    interpretationBand,
+    strengthsAndPriorities,
+    questionBank: QB,
+    validateQuestionBank: QB ? QB.validateQuestionBank : (() => ({ ok: false, errors: ["questionBank 未載入"] })),
+    ageGroups: QB ? QB.AGE_GROUPS : [],
     buildCoachRows,
     dashboardStats,
     createRepositories,

@@ -3,7 +3,7 @@ const path = require("path");
 const childProcess = require("child_process");
 
 const root = path.resolve(__dirname, "..");
-const jsFiles = ["core.js", "app.js", "scripts/build.js", "scripts/lint.js", "scripts/test.js", "scripts/browser-smoke.js"];
+const jsFiles = ["questionBank.js", "core.js", "app.js", "scripts/build.js", "scripts/lint.js", "scripts/test.js", "scripts/browser-smoke.js"];
 const forbidden = [
   "WenMind Coach Console",
   "育林國中",

@@ -740,6 +740,58 @@ textarea {
   gap: 10px;
 }
 
+/* 2.0 結果頁：能力分項卡（低分用沉穩琥珀色，不用刺眼紅色、不像警告） */
+.radar-hint {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 4px 0 10px;
+  text-align: center;
+}
+.sp-grid { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+.sp-list { margin: 0; padding-left: 18px; color: var(--text); }
+.sp-list li { margin: 4px 0; }
+.dimension-list { display: grid; gap: 10px; }
+.dimension-card {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--muted);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: rgba(16, 31, 51, .7);
+  display: grid;
+  gap: 6px;
+}
+.dimension-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.dimension-head strong { color: var(--text); font-size: 16px; }
+.band-chip {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--text);
+  white-space: nowrap;
+}
+.dimension-scores { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--muted); font-size: 13px; }
+.dimension-note { margin: 0; color: var(--text); font-size: 14px; }
+.dimension-train { margin: 0; color: var(--muted); font-size: 13px; }
+.dimension-card.band-strong { border-left-color: #3fbf87; }
+.dimension-card.band-strong .band-chip { background: rgba(63, 191, 135, .18); }
+.dimension-card.band-stable { border-left-color: #4bc4e6; }
+.dimension-card.band-stable .band-chip { background: rgba(75, 196, 230, .16); }
+.dimension-card.band-developing { border-left-color: #9db4c8; }
+.dimension-card.band-developing .band-chip { background: rgba(157, 180, 200, .16); }
+.dimension-card.band-priority { border-left-color: #e0a458; }
+.dimension-card.band-priority .band-chip { background: rgba(224, 164, 88, .18); }
+.result-disclaimer {
+  color: var(--muted);
+  font-size: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  margin-top: 4px;
+}
+@media (max-width: 560px) {
+  .sp-grid { grid-template-columns: 1fr; }
+}
+
 .record-history {
   display: flex;
   flex-wrap: wrap;

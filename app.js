@@ -11,6 +11,8 @@
     daysBetween,
     getTemplate,
     highConcernAnswers,
+    interpretationBand,
+    strengthsAndPriorities,
     readJson,
     statusLabel,
     todayISO,
@@ -463,30 +465,78 @@
     }
   }
 
+  function bandClass(key) {
+    return { strong: "band-strong", stable: "band-stable", developing: "band-developing", priority: "band-priority" }[key] || "band-developing";
+  }
+
+  function dimensionBreakdown(scores, template) {
+    const points = template?.points || 7;
+    return `
+      <div class="dimension-list">
+        ${scores.map((item) => {
+          const band = interpretationBand(item.score);
+          const avg = typeof item.average === "number" ? `${item.average.toFixed(2)} / ${item.pointScale || points}` : "—";
+          return `
+            <article class="dimension-card ${bandClass(band.key)}">
+              <div class="dimension-head">
+                <strong>${escapeHtml(item.name)}</strong>
+                <span class="band-chip">${escapeHtml(band.level)}</span>
+              </div>
+              <div class="dimension-scores">
+                <span>原始平均 ${avg}</span>
+                <span>換算分數 ${item.score} / 100</span>
+              </div>
+              <p class="dimension-note">${escapeHtml(band.note)}</p>
+              ${item.train ? `<p class="dimension-train">建議：${escapeHtml(item.train)}</p>` : ""}
+            </article>
+          `;
+        }).join("")}
+      </div>
+    `;
+  }
+
+  function strengthPriorityBlock(scores) {
+    const { strengths, priorities } = strengthsAndPriorities(scores);
+    const strengthText = strengths.length
+      ? `<ul class="sp-list">${strengths.map((item) => `<li>${escapeHtml(item.name)}（${item.score}）</li>`).join("")}</ul>`
+      : `<p class="dimension-note">本次尚未出現明確高分優勢，可先從分數相對穩定的能力持續培養。</p>`;
+    const priorityText = priorities.length
+      ? `<ul class="sp-list">${priorities.map((item) => `<li>${escapeHtml(item.name)}（${item.score}）</li>`).join("")}</ul>`
+      : `<p class="dimension-note">本次沒有明顯需要優先處理的項目，可依近期比賽需求選擇進階訓練方向。</p>`;
+    return `
+      <div class="sp-grid">
+        <section class="report-section"><h2>相對優勢</h2>${strengthText}</section>
+        <section class="report-section"><h2>優先訓練方向</h2>${priorityText}</section>
+      </div>
+    `;
+  }
+
   async function renderAthleteResult(recordId) {
     const records = await repos.assessments.recordsForAthlete(state.athlete.id);
     const record = records.find((item) => item.id === recordId) || records[0];
+    const template = getTemplate(record.assessmentTemplateId);
     shell(`
       <section class="result-flow">
         <div class="callout">
-          <p class="eyebrow">本次心理狀態已完成送出｜${escapeHtml(statusLabel(record.overallStatus))}</p>
-          <h1>恭喜你完成測驗</h1>
+          <p class="eyebrow">${escapeHtml(template.name)}</p>
+          <h1>已完成本次自評</h1>
+          ${template.subtitle ? `<p class="small-muted">${escapeHtml(template.subtitle)}</p>` : ""}
         </div>
         <div id="resultRadar"></div>
-        <div class="score-badges">
-          ${scoreBadges(record.dimensionScores)}
-        </div>
+        <p class="radar-hint">分數越高，代表目前自評的心理技能越成熟。本圖用於觀察個人能力分布，不代表與其他選手的排名。</p>
+        ${strengthPriorityBlock(record.dimensionScores)}
         <section class="report-section">
-          <h2>分數</h2>
-          ${scoreTable(record.dimensionScores)}
+          <h2>各項能力</h2>
+          ${dimensionBreakdown(record.dimensionScores, template)}
         </section>
+        <p class="result-disclaimer">${escapeHtml(template.resultNote || "本結果為選手當下的自我評估，不代表人格定型、心理疾病或比賽結果預測。")}</p>
         <div class="toolbar">
           <button class="primary" type="button" data-nav="/">完成並離開</button>
         </div>
       </section>
     `, { narrow: true });
     bindNav();
-    drawRadarInto("#resultRadar", record.dimensionScores, null, "雷達圖範圍固定為0至100。");
+    drawRadarInto("#resultRadar", record.dimensionScores, null, "0～100為線性換算分數，不是百分位排名。");
   }
 
   async function renderCoachLogin() {
@@ -532,8 +582,7 @@
     const links = [
       ["/coach/dashboard", "今日狀態"],
       ["/coach/assessments", "測驗管理"],
-      ["/coach/athletes", "填報結果"],
-      ["/coach/follow-ups", "教練回覆"]
+      ["/coach/athletes", "填報結果"]
     ];
     shell(`
       <section class="coach-shell">
@@ -1039,22 +1088,7 @@
   }
 
   async function renderFollowUps() {
-    const { rows, followUps } = await getCoachData();
-    coachShell("/coach/follow-ups", `
-      <div class="page-heading">
-        <div>
-          <p class="eyebrow">回饋與分析</p>
-          <h1>回饋內容</h1>
-        </div>
-      </div>
-      <section class="report-section">
-        <h2>回饋列表</h2>
-        ${followUps.length ? `<div class="follow-list">${followUps.map((item) => {
-          const row = rows.find((candidate) => candidate.athlete.id === item.athleteId);
-          return `<article class="follow-item"><strong>${escapeHtml(row?.athlete.name || "未知選手")}</strong><p>${escapeHtml(item.note || "未填寫回饋")}</p></article>`;
-        }).join("")}</div>` : empty("尚無回覆內容。")}
-      </section>
-    `);
+    navigate("/coach/athletes");
   }
 
   function bindNav() {
@@ -1173,10 +1207,11 @@
     ctx.setLineDash(dash);
     ctx.beginPath();
     axes.forEach((axis, index) => {
-      const value = scores.find((item) => item.id === axis.id)?.score || 0;
+      const item = scores.find((score) => score.id === axis.id);
+      const ratio = Math.max(0, Math.min(1, (item?.score || 0) / (item?.max || 100)));
       const angle = -Math.PI / 2 + index * Math.PI * 2 / axes.length;
-      const x = cx + Math.cos(angle) * radius * value / 100;
-      const y = cy + Math.sin(angle) * radius * value / 100;
+      const x = cx + Math.cos(angle) * radius * ratio;
+      const y = cy + Math.sin(angle) * radius * ratio;
       if (index === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     });

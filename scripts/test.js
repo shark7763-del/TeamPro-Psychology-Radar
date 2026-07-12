@@ -17,6 +17,7 @@ function createStorage() {
 global.localStorage = createStorage();
 global.location = { search: "", origin: "http://localhost", pathname: "/index.html" };
 global.crypto = { randomUUID: () => `test-${Math.random().toString(16).slice(2)}` };
+global.WENMIND_FORCE_LOCAL = true; // 測試一律純本機，絕不可打到正式 GAS 後台
 
 const core = require("../core.js");
 
@@ -60,11 +61,12 @@ async function run() {
   const answers = Object.fromEntries(template.questions.map((question) => [question.id, 4]));
   const scores = core.scoreAnswers(template, answers);
   assert.strictEqual(scores.length, template.dimensions.length, "需依量表構面產生分數");
+  assert.strictEqual(scores[0].max, 100, "總分模式需標準化為百分比");
   assert(core.assessmentTemplates.length >= 3, "需提供三種問卷讓選手選擇");
   assert(core.assessmentTemplates.some((item) => item.name === "渥太華心理技能問卷"), "需包含渥太華心理技能問卷");
   assert(core.assessmentTemplates.some((item) => item.name === "特質運動心理堅韌性量表"), "需包含特質運動心理堅韌性量表");
   assert(core.assessmentTemplates.some((item) => item.name === "競賽狀態性焦慮量表"), "需包含競賽狀態性焦慮量表");
-  assert(app.includes("測驗管理") && app.includes("填報結果") && app.includes("教練回覆"), "後台只保留三個區塊");
+  assert(app.includes("測驗管理") && app.includes("填報結果") && app.includes("回饋與分析"), "後台只保留三個區塊");
   assert(scores.every((score) => Number.isFinite(score.score)), "分數需為數字");
 
   const repos = core.createRepositories();
@@ -76,8 +78,8 @@ async function run() {
   const coachSession = await repos.auth.login({ account: "mind123", password: "mind123" });
   assert.strictEqual(coachSession.coachId, "coach-mind123", "運動心理教練帳密需可登入");
   const session = await repos.assessments.getActiveSession({});
-  const athlete = await repos.athletes.upsertProfile({ name: "  王小明  ", sport: "籃球", groupId: session.groupId });
-  assert.strictEqual(athlete.name, "王小明", "姓名需trim後儲存");
+  const athlete = await repos.athletes.upsertProfile({ name: "  陳立  ", sport: "籃球", groupId: session.groupId });
+  assert.strictEqual(athlete.name, "陳立", "姓名需trim後儲存");
   assert.strictEqual(athlete.sport, "籃球", "運動項目自由輸入需儲存");
 
   const record1 = await repos.assessments.submit({

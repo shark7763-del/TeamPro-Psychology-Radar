@@ -716,7 +716,58 @@ textarea {
   body, .app-shell, #app { background: #fff !important; }
   .report-print { padding: 0; border-radius: 0; }
   .report-print .report-block { break-inside: avoid; }
+  .rep-doc .rep-block { break-inside: avoid; }
 }
+
+/* ===== 報告引擎（教練／家長／選手版）===== */
+.rep-tabs { display: inline-flex; gap: 6px; }
+.rep-tab {
+  padding: 6px 14px; border-radius: 999px; border: 1px solid #cfdcec;
+  background: #fff; color: #33475f; font-weight: 600; cursor: pointer;
+}
+.rep-tab.active { background: #2f6db3; color: #fff; border-color: #2f6db3; }
+.rep-doc { color: #1f2733; display: grid; gap: 16px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.rep-doc .rep-head h1 { margin: 0 0 4px; color: #0f2036; font-size: 22px; border-bottom: 3px solid #2f6db3; padding-bottom: 10px; }
+.rep-doc .rep-sub { color: #5a6b80; font-size: 13px; margin: 0; }
+.rep-doc .rep-block h2 { color: #152741; font-size: 17px; margin: 0 0 8px; border-left: 5px solid #2f6db3; padding-left: 10px; }
+.rep-doc .rep-lead { margin: 0 0 10px; }
+.rep-stats { display: flex; gap: 0; border-radius: 10px; overflow: hidden; }
+.rep-stat { flex: 1; background: #152741; color: #fff; padding: 16px 8px; text-align: center; border-right: 1px solid rgba(255,255,255,.12); }
+.rep-stat:last-child { border-right: 0; }
+.rep-stat-n { font-size: 32px; font-weight: 800; line-height: 1; }
+.rep-stat-l { font-size: 14px; font-weight: 700; margin-top: 6px; }
+.rep-stat-d { font-size: 11px; color: #b9c6d8; margin-top: 2px; }
+.rep-tag { display: inline-block; margin-top: 6px; font-size: 11px; padding: 1px 8px; border-radius: 10px; font-weight: 700; color: #fff; }
+.rep-tag.g { background: #1f9d55; } .rep-tag.a { background: #d99000; } .rep-tag.r { background: #d84a3b; }
+.rep-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: #5a6b80; }
+.rep-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.rep-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+.rep-dot.g { background: #1f9d55; } .rep-dot.a { background: #d99000; } .rep-dot.r { background: #d84a3b; }
+.rep-bars { display: grid; gap: 6px; }
+.rep-bar { display: flex; align-items: center; gap: 10px; }
+.rep-bar-name { width: 150px; text-align: right; font-size: 13px; flex: none; }
+.rep-bar-name .rep-hint { color: #94a3b5; font-size: 11px; }
+.rep-bar-track { flex: 1; background: #eef1f5; border-radius: 5px; height: 18px; overflow: hidden; }
+.rep-bar-fill { height: 100%; border-radius: 5px; }
+.rep-bar-fill.g { background: linear-gradient(90deg,#28a866,#1f9d55); }
+.rep-bar-fill.a { background: linear-gradient(90deg,#e6a41f,#d99000); }
+.rep-bar-fill.r { background: linear-gradient(90deg,#e05a4c,#d84a3b); }
+.rep-bar-val { width: 30px; font-size: 13px; font-weight: 700; flex: none; }
+.rep-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rep-table th, .rep-table td { border: 1px solid #e2e8f2; padding: 8px 11px; vertical-align: top; text-align: left; }
+.rep-table th { background: #152741; color: #fff; }
+.rep-table .rep-th { font-weight: 700; color: #152741; width: 32%; }
+.rep-callout { background: #eef4fb; border: 1px solid #cfe0f2; border-radius: 8px; padding: 12px 16px; }
+.rep-callout.green { background: #eef8f1; border-color: #bfe3cb; }
+.rep-callout.alert { background: #fdecea; border-color: #f0b4ad; }
+.rep-callout-t { font-weight: 700; color: #152741; margin-bottom: 3px; }
+.rep-callout.alert .rep-callout-t { color: #a5281a; }
+.rep-cols { display: grid; gap: 12px; grid-template-columns: repeat(3, 1fr); }
+.rep-col { border: 1px solid #e2e8f2; border-radius: 8px; padding: 12px 14px; }
+.rep-col h3 { margin: 0 0 6px; color: #152741; font-size: 14px; }
+.rep-col p { margin: 0; font-size: 13px; }
+.rep-foot { color: #7a8aa0; font-size: 12px; border-top: 1px solid #e2e8f2; padding-top: 10px; }
+@media (max-width: 640px) { .rep-cols { grid-template-columns: 1fr; } .rep-bar-name { width: 96px; } }
 
 .scale-tag {
   display: inline-block;

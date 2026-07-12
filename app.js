@@ -910,46 +910,54 @@
       ? followUps.map((item) => `<tr><td>${item.updatedAt ? formatDate(item.updatedAt) : "—"}</td><td>${escapeHtml(followStatusLabel(item.status))}</td><td>${escapeHtml(item.note || "—")}</td><td>${escapeHtml(item.nextAction || "—")}</td><td>${item.followUpDate || "—"}</td></tr>`).join("")
       : `<tr><td colspan="5">尚無關心與追蹤紀錄</td></tr>`;
     const completedCount = (records || []).length;
+    let reportAudience = "coach";
+    const renderReportBody = () => {
+      const engine = window.WenMindReport;
+      const host = document.querySelector("#repBody");
+      if (!host) return;
+      if (!engine) { host.innerHTML = "<p class=\"report-note\">報告引擎未載入（請確認 reportEngine.js）。</p>"; return; }
+      const rep = engine.buildReport({
+        athlete, record,
+        assessmentName: assessmentName(record),
+        completedAt: formatDateTime(record.completedAt),
+        audience: reportAudience
+      });
+      host.innerHTML = rep.html;
+    };
     shell(`
       <section class="athlete-report report-print">
         <div class="toolbar no-print">
           <button class="ghost" type="button" id="reportBack">返回</button>
+          <div class="rep-tabs">
+            <button class="rep-tab active" type="button" data-aud="coach">教練版</button>
+            <button class="rep-tab" type="button" data-aud="parent">家長版</button>
+            <button class="rep-tab" type="button" data-aud="athlete">選手版</button>
+          </div>
           <button class="ghost" type="button" id="reportCopy">複製文字（給LINE）</button>
           <button class="primary" type="button" id="reportPrint">列印／儲存PDF</button>
         </div>
-        <header class="report-head">
-          <h1>心理狀態報告</h1>
-          <p class="report-name">${escapeHtml(athlete.name)}｜${escapeHtml(athlete.sport || "未設定")}</p>
-          <p class="report-meta">量表：${escapeHtml(assessmentName(record))}　｜　完成時間：${formatDateTime(record.completedAt)}　｜　整體狀態：${escapeHtml(statusLabel(record.overallStatus))}　｜　累計填報：${completedCount} 次</p>
-        </header>
         <section class="report-block">
           <h2>雷達圖</h2>
           <div id="reportRadar"></div>
         </section>
-        <section class="report-block">
-          <h2>構面分數</h2>
-          ${scoreTable(scores)}
-          <p class="report-note"><strong>本次最需要注意：</strong>${watch}</p>
-        </section>
-        <section class="report-block">
+        <div id="repBody"></div>
+        <section class="report-block no-print report-extra">
           <h2>與上次相比</h2>
           <table class="score-table"><thead><tr><th>構面</th><th>變化</th></tr></thead><tbody>${changeRows}</tbody></table>
-        </section>
-        <section class="report-block">
-          <h2>摘要與建議</h2>
-          <p class="report-note"><strong>一句話摘要：</strong>${escapeHtml(record.aiSummary || "—")}</p>
-          <p class="report-note"><strong>建議詢問：</strong>${escapeHtml(record.suggestedQuestion || "—")}</p>
-        </section>
-        <section class="report-block">
           <h2>關心與追蹤紀錄</h2>
           <table class="score-table"><thead><tr><th>日期</th><th>狀態</th><th>紀錄</th><th>後續處理</th><th>下次追蹤</th></tr></thead><tbody>${historyRows}</tbody></table>
         </section>
-        <footer class="report-foot">本報告僅供自我了解與後續心理訓練規劃、溝通參考，不作為醫療或心理診斷依據。</footer>
       </section>
     `);
     drawRadarInto("#reportRadar", scores, null, "雷達圖範圍固定為0至100。");
+    renderReportBody();
     document.querySelector("#reportBack").addEventListener("click", () => renderAthleteDetail({ athleteId: athlete.id }));
     document.querySelector("#reportPrint").addEventListener("click", () => window.print());
+    document.querySelectorAll(".rep-tab").forEach((btn) => btn.addEventListener("click", () => {
+      reportAudience = btn.dataset.aud || "coach";
+      document.querySelectorAll(".rep-tab").forEach((b) => b.classList.toggle("active", b === btn));
+      renderReportBody();
+    }));
     document.querySelector("#reportCopy").addEventListener("click", async (event) => {
       const button = event.currentTarget;
       try {

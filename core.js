@@ -621,6 +621,7 @@
       this.cacheKey = cacheKey;
       this.cache = sanitizeStore(readJson(cacheKey, null) || createEmptyStore());
       this._pending = Promise.resolve();
+      this._writeSeq = 0; // 每次本機寫入遞增，用來判斷伺服器回應是否已過期
       this.online = false;
       this.lastError = "";
     }
@@ -630,21 +631,28 @@
     }
     write(store) {
       this.cache = sanitizeStore(store);
+      this._writeSeq += 1;
       writeJson(this.cacheKey, this.cache);
-      this._queuePush(this.cache);
+      this._queuePush(this.cache, this._writeSeq);
       return this.cache;
     }
-    _queuePush(store) {
+    // 套用伺服器資料，但保留「本機當下的作答草稿」，且不覆蓋比它更新的本機寫入
+    _applyServer(serverStore, seqAtRequest) {
+      if (seqAtRequest !== undefined && seqAtRequest !== this._writeSeq) return; // 期間有更新的本機寫入，放棄套用避免回退
+      const localDrafts = (this.cache && this.cache.drafts) ? this.cache.drafts : {};
+      const merged = sanitizeStore(serverStore);
+      merged.drafts = { ...(merged.drafts || {}), ...localDrafts }; // 本機草稿優先，作答中不被同步蓋掉
+      this.cache = merged;
+      writeJson(this.cacheKey, this.cache);
+    }
+    _queuePush(store, seq) {
       if (!this.endpoint) return this._pending;
       const snapshot = JSON.parse(JSON.stringify(store));
       this._pending = this._pending
         .catch(() => {})
         .then(() => postRemote(this.endpoint, { action: "push", store: snapshot }))
         .then((data) => {
-          if (data && data.store) {
-            this.cache = data.store;
-            writeJson(this.cacheKey, this.cache);
-          }
+          if (data && data.store) this._applyServer(data.store, seq);
           this.online = true;
           this.lastError = "";
         })
@@ -667,15 +675,14 @@
       await this.flush();
       // 若上次 push 失敗（曾離線），先補送本機快取再拉最新。
       if (this.lastError) {
-        this._queuePush(this.cache);
+        this._queuePush(this.cache, this._writeSeq);
         await this.flush();
       }
+      const seqAtRequest = this._writeSeq;
       try {
         const data = await postRemote(this.endpoint, { action: "pull" });
-        if (data && data.store) {
-          this.cache = data.store;
-          writeJson(this.cacheKey, this.cache);
-        }
+        // 只有在拉取期間沒有更新的本機寫入時才套用，並保留本機草稿
+        if (data && data.store) this._applyServer(data.store, seqAtRequest);
         this.online = true;
         this.lastError = "";
       } catch (err) {

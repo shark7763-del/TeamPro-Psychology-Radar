@@ -716,34 +716,91 @@
   }
 
   async function renderAllAthletes() {
-    const { rows, followUps } = await getCoachData();
-    const completed = rows.filter((row) => row.record);
+    const { rows, stats } = await getCoachData();
+    const filtered = filterRows(rows);
     coachShell("/coach/athletes", `
       <div class="page-heading">
         <div>
           <p class="eyebrow">填報結果</p>
           <h1>結果清單</h1>
+          <p class="small-muted">共 ${rows.length} 位，符合目前條件 ${filtered.length} 位。</p>
         </div>
       </div>
-      ${completed.length ? `
-        <div class="priority-list">${completed.map((row) => `
-          <article class="status-card ${row.status}">
-            <div class="split-row">
-              <div>
-                <h3>${escapeHtml(row.athlete.name)}｜${escapeHtml(row.athlete.sport || "未設定")}</h3>
-                <span class="status-dot ${row.status}">${escapeHtml(statusLabel(row.status))}</span>
-                <span class="scale-tag">${escapeHtml(assessmentName(row.record))}</span>
-              </div>
-              <span class="small-muted">${formatDateTime(row.record.completedAt)}</span>
-            </div>
-            <div class="toolbar">
-              <button class="primary" data-nav="/coach/athletes/${row.athlete.id}" type="button">查看結果</button>
-            </div>
-          </article>
-        `).join("")}</div>
-      ` : empty("目前沒有填報結果。")}
+      <section class="report-section">
+        <div class="dashboard-stats">
+          ${statCard("選手總數", stats.total)}
+          ${statCard("完成填報", stats.completed)}
+          ${statCard("尚未填報", stats.pending)}
+          ${statCard("需優先關心", stats.priority)}
+          ${statCard("今日待追蹤", stats.dueToday)}
+          ${statCard("逾期未追蹤", stats.overdue)}
+        </div>
+      </section>
+      <section class="report-section">
+        <h2>篩選</h2>
+        <div class="filter-bar" role="toolbar" aria-label="結果篩選">
+          ${filterButton("all", "全部")}
+          ${filterButton("red", "優先關心")}
+          ${filterButton("orange", "觀察中")}
+          ${filterButton("green", "穩定")}
+          ${filterButton("gray", "尚未填報")}
+          ${filterButton("unviewed", "尚未查看")}
+          ${filterButton("uncared", "尚未關心")}
+          ${filterButton("today", "今日追蹤")}
+          ${filterButton("overdue", "逾期追蹤")}
+        </div>
+        <form class="search-row" id="athleteFilterForm">
+          <label class="field">搜尋
+            <input id="athleteSearch" value="${escapeHtml(state.search)}" placeholder="姓名或運動項目">
+          </label>
+          <label class="field">日期
+            <select id="athleteDateFilter">
+              ${dateOption("all", "全部日期")}
+              ${dateOption("7", "最近7天")}
+              ${dateOption("30", "最近30天")}
+              ${dateOption("custom", "自訂區間")}
+            </select>
+          </label>
+          <label class="field">起日
+            <input id="athleteStartDate" type="date" value="${escapeHtml(state.customStart)}" ${state.dateFilter === "custom" ? "" : "disabled"}>
+          </label>
+          <label class="field">迄日
+            <input id="athleteEndDate" type="date" value="${escapeHtml(state.customEnd)}" ${state.dateFilter === "custom" ? "" : "disabled"}>
+          </label>
+          <div class="toolbar filter-actions">
+            <button class="primary" type="submit">套用</button>
+            <button class="ghost" type="button" id="clearAthleteFilters">清除</button>
+          </div>
+        </form>
+      </section>
+      <section class="report-section">
+        <h2>選手結果</h2>
+        ${filtered.length ? `
+          <div class="athlete-table-wrap">
+            <table class="score-table athlete-table">
+              <thead>
+                <tr>
+                  <th>姓名</th><th>項目</th><th>量表</th><th>完成時間</th><th>狀態</th>
+                  <th>最低構面</th><th>與上次相比</th><th>查看</th><th>關心</th><th>追蹤日</th>
+                </tr>
+              </thead>
+              <tbody>${filtered.map(tableRow).join("")}</tbody>
+            </table>
+          </div>
+          <div class="mobile-card-list">${filtered.map(mobileAthleteCard).join("")}</div>
+        ` : empty("目前沒有符合條件的選手結果。")}
+      </section>
     `);
     bindCoachActions();
+    bindAthleteListControls();
+  }
+
+  function filterButton(value, label) {
+    return `<button class="${state.filter === value ? "active" : ""}" type="button" data-filter="${value}">${escapeHtml(label)}</button>`;
+  }
+
+  function dateOption(value, label) {
+    return `<option value="${value}" ${state.dateFilter === value ? "selected" : ""}>${escapeHtml(label)}</option>`;
   }
 
   function filterRows(rows) {
@@ -775,6 +832,9 @@
 
   function tableRow(row) {
     const record = row.record;
+    const lowScores = record?.dimensionScores
+      ? [...record.dimensionScores].sort((a, b) => a.score - b.score).slice(0, 2).map((item) => `${item.name}${item.score}`).join("、")
+      : "—";
     const compare = record?.changeFromPrevious
       ? record.changeFromPrevious.filter((item) => item.delta < 0).slice(0, 2).map((item) => `${item.name}${item.delta}%`).join("；") || "無明顯下降"
       : "—";
@@ -782,13 +842,10 @@
       <tr data-nav="/coach/athletes/${row.athlete.id}">
         <td>${escapeHtml(row.athlete.name)}</td>
         <td>${escapeHtml(row.athlete.sport || "未設定")}</td>
+        <td>${record ? escapeHtml(assessmentName(record)) : "—"}</td>
         <td>${record ? formatDateTime(record.completedAt) : "尚未完成"}</td>
         <td>${escapeHtml(statusLabel(row.status))}</td>
-        <td>${scoreById(record, "confidence")}</td>
-        <td>${scoreById(record, "focus")}</td>
-        <td>${scoreById(record, "motivation")}</td>
-        <td>${scoreById(record, "pressure")}</td>
-        <td>${scoreById(record, "recovery")}</td>
+        <td>${escapeHtml(lowScores)}</td>
         <td>${escapeHtml(compare)}</td>
         <td>${row.viewed ? "是" : "否"}</td>
         <td>${row.cared ? "是" : "否"}</td>
@@ -805,7 +862,7 @@
           <h3>${escapeHtml(row.athlete.name)}</h3>
           <span class="status-dot ${row.status}">${escapeHtml(statusLabel(row.status))}</span>
         </div>
-        <p>${escapeHtml(row.athlete.sport || "未設定")}｜${record ? formatDateTime(record.completedAt) : "尚未完成"}</p>
+        <p>${escapeHtml(row.athlete.sport || "未設定")}｜${record ? `${escapeHtml(assessmentName(record))}｜${formatDateTime(record.completedAt)}` : "尚未完成"}</p>
         <div class="meta-row">
           <span class="meta-pill">已查看：${row.viewed ? "是" : "否"}</span>
           <span class="meta-pill">已關心：${row.cared ? "是" : "否"}</span>
@@ -814,6 +871,37 @@
         <button class="ghost" data-nav="/coach/athletes/${row.athlete.id}" type="button">查看完整狀態</button>
       </article>
     `;
+  }
+
+  function bindAthleteListControls() {
+    document.querySelectorAll("[data-filter]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        state.filter = button.dataset.filter || "all";
+        await renderAllAthletes();
+      });
+    });
+    document.querySelector("#athleteDateFilter")?.addEventListener("change", (event) => {
+      state.dateFilter = event.target.value;
+      const custom = state.dateFilter === "custom";
+      document.querySelector("#athleteStartDate").disabled = !custom;
+      document.querySelector("#athleteEndDate").disabled = !custom;
+    });
+    document.querySelector("#athleteFilterForm")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      state.search = document.querySelector("#athleteSearch").value.trim();
+      state.dateFilter = document.querySelector("#athleteDateFilter").value;
+      state.customStart = document.querySelector("#athleteStartDate").value;
+      state.customEnd = document.querySelector("#athleteEndDate").value;
+      await renderAllAthletes();
+    });
+    document.querySelector("#clearAthleteFilters")?.addEventListener("click", async () => {
+      state.filter = "all";
+      state.search = "";
+      state.dateFilter = "all";
+      state.customStart = "";
+      state.customEnd = "";
+      await renderAllAthletes();
+    });
   }
 
   async function renderAthleteDetail(params) {

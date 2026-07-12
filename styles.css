@@ -596,6 +596,13 @@ textarea {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) 150px 150px 150px;
   gap: 10px;
+  align-items: end;
+  margin-top: 12px;
+}
+
+.filter-actions {
+  grid-column: 1 / -1;
+  margin-top: 0;
 }
 
 .athlete-table-wrap {
@@ -620,6 +627,15 @@ textarea {
 .score-table th {
   color: var(--text);
   white-space: nowrap;
+}
+
+.athlete-table td {
+  min-width: 92px;
+}
+
+.athlete-table td:nth-child(6),
+.athlete-table td:nth-child(7) {
+  min-width: 150px;
 }
 
 .score-table tr {

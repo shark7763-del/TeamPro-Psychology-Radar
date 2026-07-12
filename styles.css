@@ -75,6 +75,21 @@ button, a { -webkit-tap-highlight-color: transparent; }
   cursor: pointer;
   padding: 0;
   min-width: 0;
+  max-width: min(420px, calc(100% - 180px));
+  border-radius: 8px;
+}
+
+.brand:focus {
+  outline: none;
+}
+
+.brand:focus-visible {
+  outline: 1px solid rgba(32, 217, 246, .75);
+  outline-offset: 4px;
+}
+
+.brand > span:last-child {
+  min-width: 0;
 }
 
 .brand-mark {
@@ -92,9 +107,9 @@ button, a { -webkit-tap-highlight-color: transparent; }
   filter: drop-shadow(0 0 6px rgba(25, 216, 255, .35));
 }
 
-.brand strong, .brand small { display: block; }
+.brand strong, .brand small { display: block; overflow: hidden; text-overflow: ellipsis; }
 .brand strong { font-size: 16px; }
-.brand small { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.brand small { color: var(--muted); font-size: 12px; margin-top: 2px; white-space: nowrap; }
 
 .coach-login-link {
   color: var(--text);

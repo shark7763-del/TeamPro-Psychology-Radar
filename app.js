@@ -588,9 +588,12 @@
       <section class="coach-shell">
         <header class="coach-header">
           <div class="coach-brand">
-            <p class="eyebrow">運動心理教練後台</p>
+            <div class="meta-row">
+              <p class="eyebrow">運動心理教練後台</p>
+              <span class="mode-chip">${APP_MODE === "demo" ? "展示模式" : "正式模式"}</span>
+            </div>
             <h2>WenMind × TeamPro</h2>
-            <p class="small-muted">展示模式：資料目前儲存在本瀏覽器 localStorage。</p>
+            <p class="small-muted">${repos.synced ? "後台資料已連線同步。" : "資料目前儲存在本瀏覽器 localStorage。"}</p>
           </div>
           <button class="ghost" id="logoutButton" type="button">登出</button>
         </header>

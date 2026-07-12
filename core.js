@@ -115,7 +115,6 @@
 
   const assessmentTemplates = [
     teamproTemplate("standard"),
-    teamproTemplate("child"),
     {
       id: "ottawa-mental-skills-v1",
       version: "2026.07.demo",

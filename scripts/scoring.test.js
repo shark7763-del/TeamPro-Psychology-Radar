@@ -25,13 +25,10 @@ function answersAll(template, value) {
 
 async function run() {
   const template = core.getTemplate("teampro-mental-skills-v2");
-  const child = core.getTemplate("teampro-mental-skills-v2-child");
 
   // 測試11 + 12：題庫結構（48題／12構面／每構面4題／id唯一／無重複題／全正向）
   const vb = core.validateQuestionBank("standard");
   assert(vb.ok, "題庫檢核失敗：" + vb.errors.join("；"));
-  const vbc = core.validateQuestionBank("child");
-  assert(vbc.ok, "兒童版題庫檢核失敗：" + vbc.errors.join("；"));
   assert.strictEqual(template.questions.length, 48, "測試11：總題數需為48");
   assert.strictEqual(template.dimensions.length, 12, "測試11：需為12構面");
   const perDim = {};
@@ -59,11 +56,6 @@ async function run() {
   assert.strictEqual(core.strengthsAndPriorities(mk([70, 66, 62, 58, 50])).strengths.length, 0, "測試7：無>=75不得產生優勢");
   // 測試8：全部>60 → 不得強制產生弱項
   assert.strictEqual(core.strengthsAndPriorities(mk([88, 80, 74, 66, 61])).priorities.length, 0, "測試8：全部>=60不得產生弱項");
-
-  // 測試10：兒童版需顯示兒童版提醒文字
-  assert(/兒童版/.test(child.resultNote), "測試10：兒童版需有兒童版提醒");
-  assert.strictEqual(child.points, 7, "兒童版計分方式需一致（7點）");
-  assert.strictEqual(child.questions.length, 48, "兒童版需同為48題");
 
   // 測試5/6：歷史比較（需同一選手、同版本、至少兩筆才比較；首筆為null）
   const repos = core.createRepositories();

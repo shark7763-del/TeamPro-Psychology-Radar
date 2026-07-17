@@ -126,19 +126,6 @@
     return out.slice(0, 5);
   }
 
-  // ---- 四週訓練建議（取最需補強的 3 項 train 提示 + 通則）----
-  function buildPlan(scores) {
-    const weak = scores.filter((d) => Number.isFinite(d.score))
-      .sort((a, b) => merit(a) - merit(b)).slice(0, 3);
-    const weeks = [
-      { w: "第 1 週", title: "放鬆基準", body: "每天一次 4 秒吸氣、6 秒吐氣 × 4 回合，練習放下肩膀與雙手；訓練前後評估緊繃 0–10。", done: "吐氣後緊繃下降至少 1 分。" },
-      { w: "第 2 週", title: "建立支點", body: weak[0] ? `針對「${weak[0].name}」：${weak[0].train || "以具體、可重複的小練習逐步建立。"}` : "選定一項最需補強的能力，安排固定小練習。", done: "能說出並完成當週的固定練習。" },
-      { w: "第 3 週", title: "接上情境", body: weak[1] ? `針對「${weak[1].name}」：${weak[1].train || "在接近比賽的情境中練習應用。"}` : "把練習放進接近比賽的情境中。", done: "壓力情境下仍能完成流程。" },
-      { w: "第 4 週", title: "穩定輸出", body: "模擬賽後記錄四項分數，找出最佳狀態區間，並持續追蹤情緒與疲勞。", done: "連續 3 次模擬維持穩定。" }
-    ];
-    return weeks;
-  }
-
   // ---- 三種對象的語氣包 ----
   function audiencePack(audience, ctx) {
     const { name } = ctx;
@@ -179,7 +166,6 @@
     const cards = pickHeadline(scores);
     const flags = computeFlags(scores);
     const insights = buildInsights(scores);
-    const plan = buildPlan(scores);
     const pack = audiencePack(audience, { name: athlete.name || "選手" });
 
     const head = `<header class="rep-head">
@@ -187,18 +173,11 @@
       <p class="rep-sub">${esc(athlete.sport || "")}${assessmentName ? "　｜　量表：" + esc(assessmentName) : ""}${completedAt ? "　｜　完成 " + esc(completedAt) : ""}</p>
     </header>`;
 
-    // 教練版：訓練建議為主；家長／選手版：重點摘要 + 對象專頁
-    // 註：優先關心提醒／分數磚／燈號說明／綜合判讀／各構面分數目前不呈現（與雷達圖上下重複），
-    // flags/cards 仍計算並回傳，供呼叫端或日後恢復使用。
+    // 教練版：目前只呈現標題與雷達圖（由 app.js 畫在 body 之外）；家長／選手版：重點摘要 + 對象專頁
+    // 註：優先關心提醒／分數磚／燈號說明／綜合判讀／各構面分數／四週訓練建議目前皆不呈現，
+    // 等使用者提供新的報告內容。flags/cards/insights 仍計算並回傳，供呼叫端或日後恢復使用。
     let body = "";
-    if (audience === "coach") {
-      body = `
-        <section class="rep-block"><h2>四週訓練建議</h2>
-          <table class="rep-table"><thead><tr><th>週次</th><th>內容</th><th>完成標準</th></tr></thead><tbody>
-          ${plan.map((p) => `<tr><td><b>${esc(p.w)}</b><br>${esc(p.title)}</td><td>${esc(p.body)}</td><td>${esc(p.done)}</td></tr>`).join("")}
-          </tbody></table>
-        </section>`;
-    } else {
+    if (audience !== "coach") {
       body = `
         <section class="rep-block"><h2>重點摘要</h2>
           <table class="rep-table"><tbody>${insights.slice(0, 3).map((i) => `<tr><td class="rep-th">${esc(i.t)}</td><td>${esc(i.d)}</td></tr>`).join("")}</tbody></table>

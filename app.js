@@ -952,10 +952,6 @@
           <div id="detailRadar"></div>
         </section>
         <section class="report-section">
-          <h2>分數</h2>
-          ${scoreTable(record.dimensionScores)}
-        </section>
-        <section class="report-section">
           <h2>回饋與分析</h2>
           ${followUpForm(record, athlete)}
         </section>
@@ -1082,15 +1078,6 @@
       const avg = Math.round(record.dimensionScores.reduce((sum, item) => sum + item.score, 0) / record.dimensionScores.length);
       return `<div><span>${formatDate(record.completedAt)}</span><strong style="width:${avg}%">${avg}</strong></div>`;
     }).join("")}</div>`;
-  }
-
-  function scoreTable(scores) {
-    return `
-      <table class="score-table">
-        <thead><tr><th>構面</th><th>分數</th></tr></thead>
-        <tbody>${scores.map((item) => `<tr><td>${escapeHtml(item.name)}</td><td>${item.score}</td></tr>`).join("")}</tbody>
-      </table>
-    `;
   }
 
   function dimensionName(template, id) {

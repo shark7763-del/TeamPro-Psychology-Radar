@@ -139,39 +139,6 @@
     return weeks;
   }
 
-  // ================= HTML 片段 =================
-  function barsHtml(scores) {
-    const rows = [...scores].sort((a, b) => merit(b) - merit(a)).map((d) => {
-      const lv = levelOf(d);
-      const w = Math.max(2, Math.min(100, Number(d.score) || 0));
-      const note = isAnxiety(d) ? ' <span class="rep-hint">(分數低＝焦慮高)</span>' : "";
-      return `<div class="rep-bar"><div class="rep-bar-name">${esc(d.name)}${note}</div>` +
-        `<div class="rep-bar-track"><div class="rep-bar-fill ${lv.key}" style="width:${w}%"></div></div>` +
-        `<div class="rep-bar-val">${esc(d.score)}</div></div>`;
-    }).join("");
-    return `<div class="rep-bars">${rows}</div>`;
-  }
-
-  function statsHtml(cards) {
-    return `<div class="rep-stats">` + cards.map((c) =>
-      `<div class="rep-stat"><div class="rep-stat-n">${esc(c.score)}</div>` +
-      `<div class="rep-stat-l">${esc(c.name)}</div><div class="rep-stat-d">${esc(c.desc)}</div>` +
-      `<span class="rep-tag ${c.key}">${esc(c.tag)}</span></div>`).join("") + `</div>`;
-  }
-
-  function flagsHtml(flags) {
-    if (!flags.length) return "";
-    return flags.map((f) => `<div class="rep-callout alert"><div class="rep-callout-t">優先關心提醒</div>${esc(f.text)}</div>`).join("");
-  }
-
-  function legendHtml() {
-    return `<div class="rep-legend">
-      <span><i class="rep-dot g"></i>綠燈 優勢</span>
-      <span><i class="rep-dot a"></i>黃燈 尚可，需練習</span>
-      <span><i class="rep-dot r"></i>紅燈 優先處理</span>
-      <span>※ 擔心／焦慮類為「越高越需留意」</span></div>`;
-  }
-
   // ---- 三種對象的語氣包 ----
   function audiencePack(audience, ctx) {
     const { name } = ctx;
@@ -220,17 +187,12 @@
       <p class="rep-sub">${esc(athlete.sport || "")}${assessmentName ? "　｜　量表：" + esc(assessmentName) : ""}${completedAt ? "　｜　完成 " + esc(completedAt) : ""}</p>
     </header>`;
 
-    // 教練版：完整；家長／選手版：重點 + 對象專頁
+    // 教練版：訓練建議為主；家長／選手版：重點摘要 + 對象專頁
+    // 註：優先關心提醒／分數磚／燈號說明／綜合判讀／各構面分數目前不呈現（與雷達圖上下重複），
+    // flags/cards 仍計算並回傳，供呼叫端或日後恢復使用。
     let body = "";
     if (audience === "coach") {
       body = `
-        ${flagsHtml(flags)}
-        ${statsHtml(cards)}
-        ${legendHtml()}
-        <section class="rep-block"><h2>綜合判讀</h2>
-          <table class="rep-table"><tbody>${insights.map((i) => `<tr><td class="rep-th">${esc(i.t)}</td><td>${esc(i.d)}</td></tr>`).join("")}</tbody></table>
-        </section>
-        <section class="rep-block"><h2>各構面分數</h2>${barsHtml(scores)}</section>
         <section class="rep-block"><h2>四週訓練建議</h2>
           <table class="rep-table"><thead><tr><th>週次</th><th>內容</th><th>完成標準</th></tr></thead><tbody>
           ${plan.map((p) => `<tr><td><b>${esc(p.w)}</b><br>${esc(p.title)}</td><td>${esc(p.body)}</td><td>${esc(p.done)}</td></tr>`).join("")}
@@ -238,9 +200,6 @@
         </section>`;
     } else {
       body = `
-        ${audience === "parent" ? flagsHtml(flags) : ""}
-        ${statsHtml(cards)}
-        ${legendHtml()}
         <section class="rep-block"><h2>重點摘要</h2>
           <table class="rep-table"><tbody>${insights.slice(0, 3).map((i) => `<tr><td class="rep-th">${esc(i.t)}</td><td>${esc(i.d)}</td></tr>`).join("")}</tbody></table>
         </section>
@@ -251,8 +210,7 @@
         </section>`;
     }
 
-    const foot = `<footer class="rep-foot">本報告由系統依自陳量表 0–100 分數自動判讀，僅供自我了解與心理訓練規劃、溝通參考，<b>不作為醫療或心理診斷依據</b>。判讀方向依系統構面設定；如需調整請洽管理者。</footer>`;
-    return { html: `<div class="rep-doc rep-${esc(audience)}">${head}${body}${foot}</div>`, flags, cards, insights };
+    return { html: `<div class="rep-doc rep-${esc(audience)}">${head}${body}</div>`, flags, cards, insights };
   }
 
   const api = { buildReport, levelOf, isAnxiety, LEVEL, ALERT };

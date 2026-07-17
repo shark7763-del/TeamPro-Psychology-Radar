@@ -26,6 +26,9 @@
   const homeButton = document.querySelector("#homeButton");
   const repos = createRepositories();
 
+  // 選手端可挑選的量表（hidden 的量表仍留在 assessmentTemplates 供既有紀錄查閱）
+  const selectableTemplates = assessmentTemplates.filter((item) => !item.hidden);
+
   const state = {
     route: "/",
     routeParams: {},
@@ -34,7 +37,7 @@
     currentAthleteName: "",
     currentCoachRecord: null,
     activeSession: null,
-    templateId: assessmentTemplates[0].id,
+    templateId: selectableTemplates[0].id,
     startedAt: null,
     questionIndex: 0,
     submitStatus: "idle",
@@ -167,7 +170,10 @@
   async function getAssessmentContext(params = {}) {
     const session = await repos.assessments.getActiveSession(params);
     state.activeSession = session;
-    state.templateId = params.template || state.templateId || session.templateId || assessmentTemplates[0].id;
+    const requested = params.template || state.templateId || session.templateId;
+    // 既有場次可能仍指向已停用（hidden）的量表，一律收斂回可填寫的量表。
+    const selectable = selectableTemplates.some((item) => item.id === requested);
+    state.templateId = selectable ? requested : selectableTemplates[0].id;
     return { session, template: getTemplate(state.templateId) };
   }
 
@@ -296,7 +302,7 @@
         <p class="eyebrow">${escapeHtml(state.athlete.name)}｜${escapeHtml(state.athlete.sport)}</p>
         <p>請選擇本次要填寫的心理量表。系統會依各量表的題目、量尺與構面建立獨立歷史紀錄。</p>
         <div class="assessment-grid">
-          ${assessmentTemplates.map((item) => {
+          ${selectableTemplates.map((item) => {
             const active = item.id === template.id;
             return `
               <button class="assessment-card ${active ? "active" : ""}" data-template="${item.id}" type="button">
@@ -445,8 +451,9 @@
         answers: draft.answers,
         startedAt: draft.startedAt
       });
-      // 確認本次填報已送達後台，再帶選手到結果頁。
-      await syncFlush();
+      // 紀錄已寫入本機快取，不讓選手卡在「送出中」等後台回應：
+      // 最多等 3 秒確認送達，逾時就先進結果頁，剩下的推送在背景完成（失敗會保留在快取下次重送）。
+      await Promise.race([syncFlush(), new Promise((resolve) => setTimeout(resolve, 3000))]);
       state.submitStatus = "success";
       state.submitError = "";
       renderAthleteResult(record.id);
@@ -674,247 +681,6 @@
           `).join("")}
         </div>
       </section>
-    `;
-  }
-
-  function latestRecordsByTemplate(records) {
-    const map = new Map();
-    [...(records || [])]
-      .filter((record) => record && record.assessmentTemplateId)
-      .sort((a, b) => new Date(b.completedAt || 0) - new Date(a.completedAt || 0))
-      .forEach((record) => {
-        if (!map.has(record.assessmentTemplateId)) map.set(record.assessmentTemplateId, record);
-      });
-    return map;
-  }
-
-  function scoreValue(record, ids) {
-    const list = Array.isArray(ids) ? ids : [ids];
-    for (const id of list) {
-      const found = record?.dimensionScores?.find((item) => item.id === id);
-      if (found && Number.isFinite(found.score)) return found.score;
-    }
-    return null;
-  }
-
-  function meanScore(values) {
-    const nums = values.filter((value) => Number.isFinite(value));
-    if (!nums.length) return null;
-    return Math.round(nums.reduce((sum, value) => sum + value, 0) / nums.length);
-  }
-
-  function compositeLabel(count, total) {
-    if (count >= total) return "完整綜合";
-    if (count >= 2) return "初步交叉";
-    if (count === 1) return "單份結果";
-    return "尚無資料";
-  }
-
-  function buildCompositeProfile(records) {
-    const latest = latestRecordsByTemplate(records);
-    const byId = (id) => latest.get(id) || null;
-    const teampro = byId("teampro-mental-skills-v2");
-    const ottawa = byId("ottawa-mental-skills-v1");
-    const toughness = byId("trait-mental-toughness-v1");
-    const anxiety = byId("competition-state-anxiety-v1");
-    const total = assessmentTemplates.length;
-    const completed = [...latest.values()].length;
-    const axes = [
-      {
-        id: "drive",
-        name: "方向與投入",
-        score: meanScore([
-          scoreValue(teampro, ["goalSetting", "commitment"]),
-          scoreValue(ottawa, ["goal", "commitment"]),
-          scoreValue(toughness, "striving")
-        ])
-      },
-      {
-        id: "confidence",
-        name: "自信與把握感",
-        score: meanScore([
-          scoreValue(teampro, "selfConfidence"),
-          scoreValue(ottawa, "confidence"),
-          scoreValue(anxiety, "stateConfidence")
-        ])
-      },
-      {
-        id: "regulation",
-        name: "壓力調節",
-        score: meanScore([
-          scoreValue(teampro, ["stressRegulation", "emotionRegulation"]),
-          scoreValue(ottawa, ["relaxation", "stress", "fear"]),
-          scoreValue(toughness, "pressureControl"),
-          scoreValue(anxiety, ["cognitiveAnxiety", "somaticAnxiety"])
-        ])
-      },
-      {
-        id: "focus",
-        name: "專注再專注",
-        score: meanScore([
-          scoreValue(teampro, ["focus", "refocus"]),
-          scoreValue(ottawa, ["concentration", "refocus"])
-        ])
-      },
-      {
-        id: "imagery",
-        name: "意象與預演",
-        score: meanScore([
-          scoreValue(teampro, ["imageryAbility", "imageryPractice"]),
-          scoreValue(ottawa, ["imagery", "mentalPractice"])
-        ])
-      },
-      {
-        id: "preparation",
-        name: "競賽準備",
-        score: meanScore([
-          scoreValue(teampro, "competitionPlan"),
-          scoreValue(ottawa, "competitionPlan")
-        ])
-      }
-    ].filter((axis) => Number.isFinite(axis.score));
-
-    const metric = {
-      commitment: meanScore([scoreValue(teampro, "commitment"), scoreValue(ottawa, "commitment"), scoreValue(toughness, "striving")]),
-      confidence: meanScore([scoreValue(teampro, "selfConfidence"), scoreValue(ottawa, "confidence")]),
-      stateConfidence: scoreValue(anxiety, "stateConfidence"),
-      anxietyControl: meanScore([scoreValue(anxiety, "cognitiveAnxiety"), scoreValue(anxiety, "somaticAnxiety")]),
-      relaxation: meanScore([scoreValue(teampro, "relaxation"), scoreValue(ottawa, "relaxation")]),
-      focus: meanScore([scoreValue(teampro, "focus"), scoreValue(ottawa, "concentration")]),
-      refocus: meanScore([scoreValue(teampro, "refocus"), scoreValue(ottawa, "refocus")]),
-      pressure: meanScore([scoreValue(teampro, "stressRegulation"), scoreValue(toughness, "pressureControl")]),
-      pain: scoreValue(toughness, "painTolerance"),
-      plan: meanScore([scoreValue(teampro, "competitionPlan"), scoreValue(ottawa, "competitionPlan")]),
-      imagery: meanScore([scoreValue(teampro, ["imageryAbility", "imageryPractice"]), scoreValue(ottawa, ["imagery", "mentalPractice"])])
-    };
-
-    const insights = [];
-    if (completed < 2) {
-      insights.push({
-        title: "目前先看單份結果",
-        text: "已有結果可以用於晤談，但尚不足以判斷不同量表之間是否互相支持或矛盾。建議再完成至少一份量表後啟用初步交叉觀察。"
-      });
-    } else {
-      if (metric.stateConfidence != null && metric.confidence != null && metric.confidence >= 70 && metric.stateConfidence < 55) {
-        insights.push({ title: "平時把握感尚可，上場自信偏弱", text: `一般自信約 ${metric.confidence}，但競賽狀態自信 ${metric.stateConfidence}。建議追問近期比賽經驗、對手壓力與賽前想法，並用成功片段建立上場提示。` });
-      }
-      if (metric.anxietyControl != null && metric.anxietyControl < 55 && metric.relaxation != null && metric.relaxation < 60) {
-        insights.push({ title: "賽前緊繃與放鬆能力需一起處理", text: `競賽焦慮調節約 ${metric.anxietyControl}、放鬆約 ${metric.relaxation}。建議先固定呼吸與身體放鬆流程，再接近比賽情境練習。` });
-      }
-      if (metric.commitment != null && metric.commitment >= 75 && metric.pressure != null && metric.pressure < 55) {
-        insights.push({ title: "投入高，但壓力調節未跟上", text: `投入與奮鬥約 ${metric.commitment}，壓力調節約 ${metric.pressure}。這類選手常願意撐，但需要學會回報疲勞、設定安全界線與賽後恢復。` });
-      }
-      if (metric.focus != null && metric.refocus != null && (metric.focus < 60 || metric.refocus < 60)) {
-        insights.push({ title: "注意力重點在失誤後拉回", text: `專注約 ${metric.focus ?? "—"}、再專注約 ${metric.refocus ?? "—"}。建議建立「失誤後一個動作＋一句提示語」的重置流程。` });
-      }
-      if (metric.imagery != null && metric.plan != null && metric.imagery < 60 && metric.plan < 60) {
-        insights.push({ title: "賽前預演與計畫要一起補", text: `意象與預演約 ${metric.imagery}、競賽準備約 ${metric.plan}。建議把比賽流程、突發狀況與關鍵動作做成固定腳本。` });
-      }
-      if (metric.pain != null && metric.pain >= 80 && metric.pressure != null && metric.pressure < 60) {
-        insights.push({ title: "忍耐度高，要避免硬撐", text: `傷痛忍受 ${metric.pain}，壓力調節約 ${metric.pressure}。建議教練明確建立傷痛與疲勞回報規則，避免把忍耐誤當穩定。` });
-      }
-      if (!insights.length) {
-        const low = [...axes].sort((a, b) => a.score - b.score)[0];
-        const high = [...axes].sort((a, b) => b.score - a.score)[0];
-        insights.push({
-          title: "目前量表訊號大致一致",
-          text: high && low
-            ? `相對優勢是「${high.name}」${high.score}，優先補強是「${low.name}」${low.score}。建議以晤談確認是否符合日常觀察。`
-            : "目前可用資料有限，建議搭配教練觀察與選手晤談。"
-        });
-      }
-    }
-
-    const nextSteps = completed >= total
-      ? ["用最低的 1-2 個綜合構面安排四週心理技能訓練。", "兩週後重測同一份最低構面相關量表，確認變化。", "把綜合版報告作為教練、選手、家長溝通共同語言。"]
-      : completed >= 2
-        ? ["先用初步交叉觀察安排晤談。", "補齊尚未完成的量表後再看完整綜合。", "不要只看單一分數，優先確認量表訊號是否符合實際訓練觀察。"]
-        : ["先完成第二份量表以啟用交叉比對。", "目前仍可針對單份量表的低分構面做簡短晤談。"];
-
-    return { latest, completed, total, stage: compositeLabel(completed, total), axes, insights: insights.slice(0, 5), nextSteps };
-  }
-
-  function compositeAnalysisSection(records) {
-    const profile = buildCompositeProfile(records);
-    const statusRows = assessmentTemplates.map((template) => {
-      const record = profile.latest.get(template.id);
-      return `
-        <div class="composite-status ${record ? "done" : ""}">
-          <strong>${escapeHtml(template.name)}</strong>
-          <span>${record ? `完成 ${formatDate(record.completedAt)}` : "尚未完成"}</span>
-        </div>
-      `;
-    }).join("");
-    const axisRows = profile.axes.length
-      ? profile.axes.map((axis) => `
-        <div class="composite-axis">
-          <div class="split-row"><strong>${escapeHtml(axis.name)}</strong><span>${axis.score}</span></div>
-          <div class="composite-track"><i style="width:${Math.max(2, Math.min(100, axis.score))}%"></i></div>
-        </div>
-      `).join("")
-      : empty("尚無足夠資料建立綜合構面。");
-    return `
-      <section class="report-section composite-section">
-        <div class="split-row">
-          <div>
-            <h2>綜合分析</h2>
-            <p class="small-muted">使用每份量表最新一次結果進行交叉比對；完成越多份，判讀越完整。</p>
-          </div>
-          <span class="status-dot ${profile.completed >= profile.total ? "green" : profile.completed >= 2 ? "orange" : "gray"}">${profile.stage} ${profile.completed}/${profile.total}</span>
-        </div>
-        <div class="composite-status-grid">${statusRows}</div>
-        <div class="grid-2">
-          <div class="composite-panel">
-            <h3>綜合心理雷達</h3>
-            ${axisRows}
-          </div>
-          <div class="composite-panel">
-            <h3>${profile.completed >= 2 ? "交叉觀察" : "下一步"}</h3>
-            <div class="composite-insights">
-              ${profile.insights.map((item) => `<article><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.text)}</p></article>`).join("")}
-            </div>
-          </div>
-        </div>
-        <div class="composite-next">
-          ${profile.nextSteps.map((step) => `<span>${escapeHtml(step)}</span>`).join("")}
-        </div>
-      </section>
-    `;
-  }
-
-  function compositeReportHtml(athlete, records) {
-    const profile = buildCompositeProfile(records);
-    const completedRows = assessmentTemplates.map((template) => {
-      const record = profile.latest.get(template.id);
-      return `<tr><td>${escapeHtml(template.name)}</td><td>${record ? formatDateTime(record.completedAt) : "尚未完成"}</td></tr>`;
-    }).join("");
-    const axisRows = profile.axes.length
-      ? profile.axes.map((axis) => `<tr><td>${escapeHtml(axis.name)}</td><td>${axis.score}</td></tr>`).join("")
-      : `<tr><td colspan="2">尚無足夠資料建立綜合構面</td></tr>`;
-    return `
-      <div class="rep-doc rep-coach">
-        <header class="rep-head">
-          <h1>${escapeHtml(athlete.name || "選手")}｜綜合心理雷達報告</h1>
-          <p class="rep-sub">${escapeHtml(athlete.sport || "")}　｜　完成量表 ${profile.completed}/${profile.total}　｜　${escapeHtml(profile.stage)}</p>
-        </header>
-        <section class="rep-block">
-          <h2>量表完成狀態</h2>
-          <table class="rep-table"><thead><tr><th>量表</th><th>最新完成時間</th></tr></thead><tbody>${completedRows}</tbody></table>
-        </section>
-        <section class="rep-block">
-          <h2>綜合構面</h2>
-          <table class="rep-table"><thead><tr><th>構面</th><th>綜合分數</th></tr></thead><tbody>${axisRows}</tbody></table>
-        </section>
-        <section class="rep-block">
-          <h2>${profile.completed >= 2 ? "交叉觀察" : "下一步"}</h2>
-          <table class="rep-table"><tbody>${profile.insights.map((item) => `<tr><td class="rep-th">${escapeHtml(item.title)}</td><td>${escapeHtml(item.text)}</td></tr>`).join("")}</tbody></table>
-        </section>
-        <section class="rep-block">
-          <h2>建議處理</h2>
-          <table class="rep-table"><tbody>${profile.nextSteps.map((step) => `<tr><td>${escapeHtml(step)}</td></tr>`).join("")}</tbody></table>
-        </section>
-        <footer class="rep-foot">本綜合報告使用每份量表最新一次結果進行規則式交叉比對，僅供心理技能訓練、晤談與追蹤參考，不作為醫療或心理診斷依據。</footer>
-      </div>
     `;
   }
 
@@ -1179,19 +945,11 @@
             <h1>${escapeHtml(athlete.name)}</h1>
             <p class="small-muted">本次量表：${escapeHtml(assessmentName(record))}｜完成 ${formatDateTime(record.completedAt)}</p>
           </div>
-          <div class="toolbar">
-            <button class="primary" id="genAthleteReport" type="button">產出報告</button>
-            <button class="ghost" data-nav="/coach/athletes" type="button">回結果清單</button>
-          </div>
         </div>
         ${recordHistoryList(records, record.id, athlete.id)}
-        ${compositeAnalysisSection(records)}
         <section class="report-section">
           <h2>雷達圖</h2>
           <div id="detailRadar"></div>
-          <div class="score-badges">
-            ${scoreBadges(record.dimensionScores)}
-          </div>
         </section>
         <section class="report-section">
           <h2>分數</h2>
@@ -1201,9 +959,13 @@
           <h2>回饋與分析</h2>
           ${followUpForm(record, athlete)}
         </section>
+        <div class="toolbar detail-actions">
+          <button class="primary" id="genAthleteReport" type="button">產出報告</button>
+          <button class="ghost" data-nav="/coach/athletes" type="button">回結果清單</button>
+        </div>
       </section>
     `);
-    drawRadarInto("#detailRadar", record.dimensionScores, null, "雷達圖範圍固定為0至100。");
+    drawRadarInto("#detailRadar", record.dimensionScores, null, "");
     bindNav();
     bindFollowUpForm();
     document.querySelector("#genAthleteReport")?.addEventListener("click", () => {
@@ -1242,16 +1004,11 @@
     const historyRows = followUps.length
       ? followUps.map((item) => `<tr><td>${item.updatedAt ? formatDate(item.updatedAt) : "—"}</td><td>${escapeHtml(followStatusLabel(item.status))}</td><td>${escapeHtml(item.note || "—")}</td><td>${escapeHtml(item.nextAction || "—")}</td><td>${item.followUpDate || "—"}</td></tr>`).join("")
       : `<tr><td colspan="5">尚無關心與追蹤紀錄</td></tr>`;
-    const completedCount = (records || []).length;
     let reportAudience = "coach";
     const renderReportBody = () => {
       const engine = window.WenMindReport;
       const host = document.querySelector("#repBody");
       if (!host) return;
-      if (reportAudience === "composite") {
-        host.innerHTML = compositeReportHtml(athlete, records || []);
-        return;
-      }
       if (!engine) { host.innerHTML = "<p class=\"report-note\">報告引擎未載入（請確認 reportEngine.js）。</p>"; return; }
       const rep = engine.buildReport({
         athlete, record,
@@ -1266,10 +1023,8 @@
         <div class="toolbar no-print">
           <button class="ghost" type="button" id="reportBack">返回</button>
           <div class="rep-tabs">
-            <button class="rep-tab" type="button" data-aud="composite">綜合版</button>
             <button class="rep-tab active" type="button" data-aud="coach">教練版</button>
             <button class="rep-tab" type="button" data-aud="parent">家長版</button>
-            <button class="rep-tab" type="button" data-aud="athlete">選手版</button>
           </div>
           <button class="ghost" type="button" id="reportCopy">複製文字（給LINE）</button>
           <button class="primary" type="button" id="reportPrint">列印／儲存PDF</button>
@@ -1287,7 +1042,7 @@
         </section>
       </section>
     `);
-    drawRadarInto("#reportRadar", scores, null, "雷達圖範圍固定為0至100。");
+    drawRadarInto("#reportRadar", scores, null, "");
     renderReportBody();
     document.querySelector("#reportBack").addEventListener("click", () => renderAthleteDetail({ athleteId: athlete.id }));
     document.querySelector("#reportPrint").addEventListener("click", () => window.print());
@@ -1336,15 +1091,6 @@
         <tbody>${scores.map((item) => `<tr><td>${escapeHtml(item.name)}</td><td>${item.score}</td></tr>`).join("")}</tbody>
       </table>
     `;
-  }
-
-  function scoreBadges(scores) {
-    return scores.map((item) => `
-      <div class="score-badge">
-        <strong>${escapeHtml(item.name)}</strong>
-        <span>${item.score}</span>
-      </div>
-    `).join("");
   }
 
   function dimensionName(template, id) {

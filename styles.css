@@ -557,31 +557,6 @@ textarea {
   min-width: 0;
 }
 
-.score-badges {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 10px;
-}
-
-.score-badge {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 10px 12px;
-  background: var(--panel-2);
-  display: grid;
-  gap: 4px;
-}
-
-.score-badge strong {
-  font-size: 13px;
-  color: var(--text);
-}
-
-.score-badge span {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--cyan);
-}
 
 .stat-card strong {
   display: block;
@@ -966,118 +941,9 @@ textarea {
   background: rgba(75, 196, 230, .16);
 }
 
-.composite-section {
-  display: grid;
-  gap: 14px;
-}
-
-.composite-status-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.composite-status {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 11px 12px;
-  background: rgba(7, 16, 29, .52);
-  display: grid;
-  gap: 4px;
-  min-height: 72px;
-}
-
-.composite-status.done {
-  border-color: rgba(98, 217, 144, .45);
-  background: rgba(98, 217, 144, .08);
-}
-
-.composite-status strong {
-  color: var(--text);
-  font-size: 13px;
-}
-
-.composite-status span {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.composite-panel {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 14px;
-  background: rgba(7, 16, 29, .48);
-  display: grid;
-  gap: 10px;
-}
-
-.composite-panel h3 {
-  margin: 0;
-}
-
-.composite-axis {
-  display: grid;
-  gap: 6px;
-}
-
-.composite-axis strong,
-.composite-axis span {
-  font-size: 13px;
-}
-
-.composite-axis span {
-  color: var(--cyan);
-  font-weight: 900;
-}
-
-.composite-track {
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(255,255,255,.08);
-  overflow: hidden;
-}
-
-.composite-track i {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--cyan), var(--mint));
-}
-
-.composite-insights {
-  display: grid;
-  gap: 8px;
-}
-
-.composite-insights article {
-  border-left: 3px solid var(--cyan);
-  padding-left: 10px;
-}
-
-.composite-insights strong {
-  display: block;
-  color: var(--text);
-  margin-bottom: 3px;
-}
-
-.composite-insights p {
-  margin: 0;
-  font-size: 13px;
-}
-
-.composite-next {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.composite-next span {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 10px;
-  background: var(--panel-2);
-  color: var(--muted);
-  font-size: 13px;
+/* 選手詳情頁的「產出報告／回結果清單」置於內容最後 */
+.detail-actions {
+  margin-top: 4px;
 }
 
 .hidden { display: none !important; }
@@ -1089,10 +955,6 @@ textarea {
 
   .search-row {
     grid-template-columns: 1fr 1fr;
-  }
-
-  .composite-status-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1165,10 +1027,6 @@ textarea {
   }
 
   .status-details {
-    grid-template-columns: 1fr;
-  }
-
-  .composite-status-grid {
     grid-template-columns: 1fr;
   }
 }

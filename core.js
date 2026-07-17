@@ -93,6 +93,8 @@
     const isChild = ageGroup === "child";
     return {
       id: isChild ? "teampro-mental-skills-v2-child" : "teampro-mental-skills-v2",
+      // 暫不開放選手填寫；保留在清單中讓既有紀錄仍可正確顯示名稱與構面。
+      hidden: true,
       version: "2.0",
       scoringVersion: "2.0",
       questionBankVersion: "2.0",

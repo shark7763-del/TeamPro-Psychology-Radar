@@ -65,7 +65,14 @@
   }
 
   function navigate(path) {
-    window.location.hash = routePath(path);
+    const target = routePath(path);
+    // 目標與現在的 hash 相同時不會觸發 hashchange（例如從 QR 連結直接進 #/assessment，
+    // 填完姓名後導向的還是同一個 hash），此時要自己重新渲染，否則畫面會停在原地。
+    if (window.location.hash === target) {
+      renderRoute();
+      return;
+    }
+    window.location.hash = target;
   }
 
   function currentHashPath() {
